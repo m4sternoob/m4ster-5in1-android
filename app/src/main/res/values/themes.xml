@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Plain framework parent: the UI itself is 100% Compose/Material3,
+         so the Activity theme only needs to be a clean NoActionBar base. -->
+    <style name="Theme.FiveInOne" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/black</item>
+    </style>
+</resources>
