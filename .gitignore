@@ -1,0 +1,18 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Local config (SDK path, signing) — never commit
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Kotlin
+*.class
