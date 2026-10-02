@@ -4,10 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -24,7 +29,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import kotlin.math.abs
 
-/* Classic 1–100 guessing. Distance bands drive the hot/cold hint. */
+/* Classic 1–100 guessing. Distance bands drive the hot/cold hint.
+ * The Hint button serves cryptic wordplay hints from HintEngine —
+ * 3 per round, never naming the number outright. */
+
+private const val MAX_HINTS = 3
 
 private fun heatHint(distance: Int): String = when {
     distance == 0 -> "Correct!"
@@ -40,13 +49,18 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
     var target by remember { mutableStateOf((1..100).random()) }
     var text by remember { mutableStateOf("") }
     var attempts by remember { mutableStateOf(0) }
+    var guesses by remember { mutableStateOf(listOf<Int>()) }
+    var shownHints by remember { mutableStateOf(listOf<String>()) }
     var message by remember { mutableStateOf("I'm thinking of a number between 1 and 100.") }
     var won by remember { mutableStateOf(false) }
+    val hintsLeft = MAX_HINTS - shownHints.size
 
     fun newGame() {
         target = (1..100).random()
         text = ""
         attempts = 0
+        guesses = listOf()
+        shownHints = listOf()
         won = false
         message = "I'm thinking of a number between 1 and 100."
     }
@@ -59,6 +73,7 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
             return
         }
         attempts++
+        guesses = guesses + guess
         val d = abs(guess - target)
         if (d == 0) {
             won = true
@@ -67,6 +82,12 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
             message = if (guess < target) "Higher — ${heatHint(d)}" else "Lower — ${heatHint(d)}"
             text = ""
         }
+    }
+
+    fun askHint() {
+        if (won || hintsLeft <= 0) return
+        val next = HintEngine.hintsFor(target, guesses).firstOrNull { it !in shownHints }
+        if (next != null) shownHints = shownHints + next
     }
 
     Column(
@@ -92,7 +113,27 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = ::submit, enabled = !won) { Text("Guess") }
+            OutlinedButton(onClick = ::askHint, enabled = !won && hintsLeft > 0) {
+                Icon(Icons.Filled.Lightbulb, contentDescription = null)
+                Text("Hint ($hintsLeft)")
+            }
             OutlinedButton(onClick = ::newGame) { Text("New game") }
+        }
+        shownHints.lastOrNull()?.let { hint ->
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        Icons.Filled.Lightbulb,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(hint, style = MaterialTheme.typography.bodyMedium)
+                }
+            }
         }
     }
 }
