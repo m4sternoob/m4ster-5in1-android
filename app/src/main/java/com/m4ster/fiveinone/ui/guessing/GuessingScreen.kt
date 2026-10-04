@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.m4ster.fiveinone.BuildConfig
 import kotlin.math.abs
 
 /* Classic 1–100 guessing. Distance bands drive the hot/cold hint.
@@ -113,9 +114,12 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = ::submit, enabled = !won) { Text("Guess") }
-            OutlinedButton(onClick = ::askHint, enabled = !won && hintsLeft > 0) {
-                Icon(Icons.Filled.Lightbulb, contentDescription = null)
-                Text("Hint ($hintsLeft)")
+            // The noHints flavor leaves the game pure — no hint button at all.
+            if (BuildConfig.HINTS_ENABLED) {
+                OutlinedButton(onClick = ::askHint, enabled = !won && hintsLeft > 0) {
+                    Icon(Icons.Filled.Lightbulb, contentDescription = null)
+                    Text("Hint ($hintsLeft)")
+                }
             }
             OutlinedButton(onClick = ::newGame) { Text("New game") }
         }
