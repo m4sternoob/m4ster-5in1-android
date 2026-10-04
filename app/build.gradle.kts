@@ -12,8 +12,30 @@ android {
         applicationId = "com.m4ster.fiveinone"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
+    }
+
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+
+    // Two editions from one codebase: withHints ships the cryptic Hint
+    // button in Number Guessing, noHints leaves the game pure.
+    flavorDimensions += "edition"
+    productFlavors {
+        create("withHints") {
+            dimension = "edition"
+            buildConfigField("boolean", "HINTS_ENABLED", "true")
+            resValue("string", "app_name", "5IN1")
+        }
+        create("noHints") {
+            dimension = "edition"
+            buildConfigField("boolean", "HINTS_ENABLED", "false")
+            applicationIdSuffix = ".nohints"
+            resValue("string", "app_name", "5IN1 No Hints")
+        }
     }
 
     buildTypes {
@@ -31,9 +53,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
-    }
-    buildFeatures {
-        compose = true
     }
 }
 
