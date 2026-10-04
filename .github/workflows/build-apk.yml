@@ -1,6 +1,8 @@
 name: Build APK
 
-# Builds a debug APK on every push to main (and on manual dispatch).
+# Builds both debug APK flavors on every push to main (and on manual dispatch):
+#   - withHints: full game, Number Guessing ships the cryptic Hint button
+#   - noHints:   same game, pure guessing with no hints
 # Debug APKs are signed with the SDK's debug key and install directly
 # on a Pixel — no keystore or secrets needed. The workflow assumes this
 # project's files live at the repository root.
@@ -29,11 +31,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build debug APK
+      - name: Build debug APKs (both flavors)
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: 5in1-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: 5in1-apks
+          path: app/build/outputs/apk/*/debug/*.apk
