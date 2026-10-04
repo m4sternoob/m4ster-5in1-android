@@ -4,12 +4,20 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -24,14 +32,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.random.Random
 
-/* Basic canvas snake. A coroutine loop steps the game; swipe steers.
-   Immutable snapshots (new lists each step) keep recomposition predictable. */
+/* Basic canvas snake. A coroutine loop steps the game; swipe or the
+   on-screen D-pad steers. Immutable snapshots (new lists each step)
+   keep recomposition predictable. */
 
 private const val COLS = 20
 private const val ROWS = 20
@@ -104,6 +114,23 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    // Shared steering rule for swipe and D-pad: no 180° turns,
+    // they'd kill the snake instantly.
+    fun steer(want: Dir) {
+        if (want != dir.opposite()) dir = want
+    }
+
+    @Composable
+    fun PadButton(target: Dir, icon: ImageVector, label: String) {
+        Button(
+            onClick = { steer(target) },
+            modifier = Modifier.size(64.dp),
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            Icon(icon, contentDescription = label, modifier = Modifier.size(36.dp))
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -124,8 +151,7 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                         } else {
                             if (y > 0) Dir.Down else Dir.Up
                         }
-                        // No 180° turns — they'd kill the snake instantly.
-                        if (want != dir.opposite()) dir = want
+                        steer(want)
                     }
                 },
         ) {
@@ -154,8 +180,20 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
             }
             OutlinedButton(onClick = ::reset) { Text("Restart") }
         }
+        // On-screen D-pad: Up on top, Left/Down/Right in a row.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            PadButton(Dir.Up, Icons.Filled.KeyboardArrowUp, "Up")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PadButton(Dir.Left, Icons.Filled.KeyboardArrowLeft, "Left")
+                PadButton(Dir.Down, Icons.Filled.KeyboardArrowDown, "Down")
+                PadButton(Dir.Right, Icons.Filled.KeyboardArrowRight, "Right")
+            }
+        }
         Text(
-            "Swipe on the board to steer",
+            "Swipe on the board or use the pad to steer",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
