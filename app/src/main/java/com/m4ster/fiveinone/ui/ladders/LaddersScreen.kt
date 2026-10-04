@@ -36,8 +36,9 @@ import com.m4ster.fiveinone.ui.theme.BoardDark
 import com.m4ster.fiveinone.ui.theme.GridLine
 import kotlinx.coroutines.delay
 
-/* Snakes & Ladders vs CPU. 10×10 boustrophedon board, portals drawn as
-   colored links. Exact roll needed to finish. CPU moves on a short delay. */
+/* Snakes & Ladders: 1 player vs CPU, or 2 players pass-and-play.
+   10×10 boustrophedon board, portals drawn as colored links.
+   Exact roll needed to finish. CPU moves on a short delay. */
 
 private val Portals = mapOf(
     // ladders
@@ -47,8 +48,9 @@ private val Portals = mapOf(
 )
 private val LadderFeet = setOf(4, 13, 33, 42, 50, 62, 74)
 
-private const val PLAYER = 0
-private const val CPU = 1
+private enum class Mode { VsCpu, TwoPlayer }
+
+private val TokenColors = listOf(AccentBlue, AccentRed)
 
 /** Center of square n (1..100) on a size×size board. Row 1 is the bottom. */
 private fun cellCenter(n: Int, size: Float): Offset {
@@ -76,23 +78,33 @@ private val DiceFaces = listOf("⚀", "⚁", "⚂", "⚃", "⚄", "⚅")
 
 @Composable
 fun LaddersScreen(modifier: Modifier = Modifier) {
-    var playerPos by remember { mutableStateOf(0) } // 0 = off the board
-    var cpuPos by remember { mutableStateOf(0) }
-    var turn by remember { mutableStateOf(PLAYER) }
+    var mode by remember { mutableStateOf<Mode?>(null) }
+    var positions by remember { mutableStateOf(listOf(0, 0)) } // 0 = off the board
+    var turn by remember { mutableStateOf(0) }
     var dice by remember { mutableStateOf<Int?>(null) }
-    var message by remember { mutableStateOf("Tap Roll to start — race to 100!") }
+    var message by remember { mutableStateOf("Race to 100!") }
     var winner by remember { mutableStateOf<Int?>(null) }
     var cpuTrigger by remember { mutableStateOf(0) }
     var gameId by remember { mutableStateOf(0) }
 
+    val names = when (mode) {
+        Mode.VsCpu -> listOf("You", "CPU")
+        Mode.TwoPlayer -> listOf("Player 1", "Player 2")
+        null -> listOf("Player 1", "Player 2")
+    }
+
     fun reset() {
-        playerPos = 0
-        cpuPos = 0
-        turn = PLAYER
+        positions = listOf(0, 0)
+        turn = 0
         dice = null
         winner = null
-        message = "Tap Roll to start — race to 100!"
+        message = "Race to 100 — tap Roll!"
         gameId++ // cancels any in-flight CPU turn
+    }
+
+    fun pickMode(m: Mode) {
+        mode = m
+        reset()
     }
 
     fun moveMessage(who: String, from: Int, roll: Int): String {
@@ -107,39 +119,36 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    fun playerRoll() {
-        if (turn != PLAYER || winner != null) return
-        val r = (1..6).random()
-        dice = r
-        val (_, final, _) = resolveMove(playerPos, r)
-        message = moveMessage("You", playerPos, r)
-        playerPos = final
+    /** Applies one roll for player `who` and advances the turn. */
+    fun applyRoll(who: Int, roll: Int) {
+        dice = roll
+        val (_, final, _) = resolveMove(positions[who], roll)
+        message = moveMessage(names[who], positions[who], roll)
+        positions = positions.toMutableList().also { it[who] = final }
         if (final == 100) {
-            winner = PLAYER
-            message = "You rolled $r and reached 100 — you win!"
+            winner = who
+            val verb = if (names[who] == "You") "win" else "wins"
+            message = "${names[who]} rolled $roll and reached 100 — ${names[who]} $verb!"
         } else {
-            turn = CPU
-            cpuTrigger++
+            turn = 1 - who
+            if (mode == Mode.VsCpu && turn == 1) cpuTrigger++
         }
+    }
+
+    fun humanRoll() {
+        if (mode == null || winner != null) return
+        // In VsCpu mode the CPU (player 2) rolls itself.
+        if (mode == Mode.VsCpu && turn == 1) return
+        applyRoll(turn, (1..6).random())
     }
 
     // CPU acts on its own beat. gameId in the key cancels a stale turn on reset.
     LaunchedEffect(cpuTrigger, gameId) {
         val id = gameId
-        if (cpuTrigger == 0 || turn != CPU) return@LaunchedEffect
+        if (mode != Mode.VsCpu || cpuTrigger == 0 || turn != 1) return@LaunchedEffect
         delay(800)
         if (id != gameId) return@LaunchedEffect
-        val r = (1..6).random()
-        dice = r
-        val (_, final, _) = resolveMove(cpuPos, r)
-        message = moveMessage("CPU", cpuPos, r)
-        cpuPos = final
-        if (final == 100) {
-            winner = CPU
-            message = "CPU rolled $r and reached 100 — CPU wins."
-        } else {
-            turn = PLAYER
-        }
+        applyRoll(1, (1..6).random())
     }
 
     val labelPaint = remember {
@@ -149,6 +158,31 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
             isAntiAlias = true
         }
     }
+
+    // Mode picker — shown before the first game and when switching modes.
+    if (mode == null) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("Snakes & Ladders", style = MaterialTheme.typography.headlineMedium)
+            Text("Race to 100. Land on a ladder to climb, dodge the snakes.")
+            Button(onClick = { pickMode(Mode.VsCpu) }) { Text("1 Player (vs CPU)") }
+            Button(onClick = { pickMode(Mode.TwoPlayer) }) { Text("2 Players (pass & play)") }
+        }
+        return
+    }
+
+    val turnLabel = when {
+        mode == Mode.VsCpu && turn == 0 -> "Your turn"
+        mode == Mode.VsCpu -> "CPU's turn"
+        else -> "${names[turn]}'s turn"
+    }
+    val posLabel = { i: Int -> if (positions[i] == 0) "start" else "${positions[i]}" }
 
     Column(
         modifier = modifier
@@ -162,10 +196,7 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                if (turn == PLAYER) "Your turn" else "CPU's turn",
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Text(turnLabel, style = MaterialTheme.typography.titleMedium)
             Text(
                 dice?.let { DiceFaces[it - 1] } ?: "🎲",
                 fontSize = 36.sp,
@@ -204,31 +235,36 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 native.drawText(n.toString(), c.x, c.y + cell * 0.09f, labelPaint)
             }
             // Tokens (offset when sharing a square).
-            fun token(pos: Int, color: Color, shift: Float) {
-                if (pos == 0) return
+            val shared = positions[0] != 0 && positions[0] == positions[1]
+            positions.forEachIndexed { i, pos ->
+                if (pos == 0) return@forEachIndexed
                 val c = cellCenter(pos, size.width)
+                val shift = if (shared) (if (i == 0) -cell * 0.18f else cell * 0.18f) else 0f
                 val center = Offset(c.x + shift, c.y)
-                drawCircle(color, cell * 0.3f, center)
+                drawCircle(TokenColors[i], cell * 0.3f, center)
                 drawCircle(Color.White, cell * 0.3f, center, style = Stroke(cell * 0.06f))
             }
-            val shared = playerPos != 0 && playerPos == cpuPos
-            token(playerPos, AccentBlue, if (shared) -cell * 0.18f else 0f)
-            token(cpuPos, AccentRed, if (shared) cell * 0.18f else 0f)
         }
-        Text("You: ${if (playerPos == 0) "start" else playerPos}   CPU: ${if (cpuPos == 0) "start" else cpuPos}")
+        Text("${names[0]}: ${posLabel(0)}   ${names[1]}: ${posLabel(1)}")
         Text(message, style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = ::playerRoll,
-                enabled = turn == PLAYER && winner == null,
+                onClick = ::humanRoll,
+                enabled = winner == null && !(mode == Mode.VsCpu && turn == 1),
             ) { Text("Roll") }
             OutlinedButton(onClick = ::reset) { Text("Restart") }
+            OutlinedButton(onClick = { mode = null }) { Text("Mode") }
         }
         if (winner != null) {
+            val w = winner!!
             Text(
-                if (winner == PLAYER) "You win!" else "CPU wins!",
+                when {
+                    mode == Mode.VsCpu && w == 0 -> "You win!"
+                    mode == Mode.VsCpu -> "CPU wins!"
+                    else -> "${names[w]} wins!"
+                },
                 style = MaterialTheme.typography.headlineSmall,
-                color = if (winner == PLAYER) AccentBlue else AccentRed,
+                color = TokenColors[w],
             )
         }
     }
