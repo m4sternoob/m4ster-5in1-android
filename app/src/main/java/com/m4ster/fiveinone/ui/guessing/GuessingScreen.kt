@@ -31,7 +31,7 @@ import com.m4ster.fiveinone.BuildConfig
 import kotlin.math.abs
 
 /* Classic 1–100 guessing. Distance bands drive the hot/cold hint.
- * The Hint button serves cryptic wordplay hints from HintEngine —
+ * The Hint button serves cryptic wordplay hints from HintEngine:
  * 3 per round, never naming the number outright. */
 
 private const val MAX_HINTS = 3
@@ -114,7 +114,7 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(onClick = ::submit, enabled = !won) { Text("Guess") }
-            // The noHints flavor leaves the game pure — no hint button at all.
+            // The noHints flavor leaves the game pure - no hint button at all.
             if (BuildConfig.HINTS_ENABLED) {
                 OutlinedButton(onClick = ::askHint, enabled = !won && hintsLeft > 0) {
                     Icon(Icons.Filled.Lightbulb, contentDescription = null)
