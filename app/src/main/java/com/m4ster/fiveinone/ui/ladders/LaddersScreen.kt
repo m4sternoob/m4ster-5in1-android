@@ -159,15 +159,14 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    // Mode picker — shown before the first game and when switching modes.
+    // Mode picker: shown before the first game and when switching modes.
     if (mode == null) {
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalAlignment = Alignment.CenterVertically,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         ) {
             Text("Snakes & Ladders", style = MaterialTheme.typography.headlineMedium)
             Text("Race to 100. Land on a ladder to climb, dodge the snakes.")
@@ -253,7 +252,7 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 enabled = winner == null && !(mode == Mode.VsCpu && turn == 1),
             ) { Text("Roll") }
             OutlinedButton(onClick = ::reset) { Text("Restart") }
-            OutlinedButton(onClick = { mode = null }) { Text("Mode") }
+            OutlinedButton(onClick = { gameId++; mode = null }) { Text("Mode") }
         }
         if (winner != null) {
             val w = winner!!
