@@ -124,12 +124,13 @@ fun LudoScreen(modifier: Modifier = Modifier) {
 
     LaunchedEffect(glide) {
         if (glide == null) return@LaunchedEffect
-        animate(0f, 1f, animationSpec = tween(380)) { glideT = it }
+        // animate() reports (value, velocity) per frame.
+        animate(0f, 1f, animationSpec = tween(380)) { v, _ -> glideT = v }
         glide = null
     }
     LaunchedEffect(captureFx) {
         if (captureFx == null) return@LaunchedEffect
-        animate(0f, 1f, animationSpec = tween(500)) { captureT = it }
+        animate(0f, 1f, animationSpec = tween(500)) { v, _ -> captureT = v }
         captureFx = null
     }
 
