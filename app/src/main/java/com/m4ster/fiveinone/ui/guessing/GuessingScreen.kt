@@ -1,7 +1,7 @@
 package com.m4ster.fiveinone.ui.guessing
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
