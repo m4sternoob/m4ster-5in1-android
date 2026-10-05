@@ -1,9 +1,7 @@
 package com.m4ster.fiveinone.ui.snake
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -134,13 +132,19 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
     var combo by remember { mutableStateOf(1) }
     var comboTtl by remember { mutableStateOf(0) }
 
-    // Food pulse and the "+1" pop are pure UI animation.
-    val pulse by rememberInfiniteTransition(label = "food").animateFloat(
-        initialValue = 0.82f,
-        targetValue = 1.18f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
+    // Food pulse: pure UI animation, ping-pongs forever between the two sizes.
+    var pulseTarget by remember { mutableStateOf(1.18f) }
+    val pulse by animateFloatAsState(
+        targetValue = pulseTarget,
+        animationSpec = tween(700),
         label = "pulse",
     )
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(700)
+            pulseTarget = if (pulseTarget > 1f) 0.82f else 1.18f
+        }
+    }
     LaunchedEffect(score) {
         if (score > 0) {
             showPop = true
