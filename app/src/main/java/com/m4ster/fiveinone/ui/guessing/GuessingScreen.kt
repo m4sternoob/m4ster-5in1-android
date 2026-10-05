@@ -1,13 +1,15 @@
 package com.m4ster.fiveinone.ui.guessing
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateFloatAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,10 +40,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.BuildConfig
+import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.stats.GuessStats
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentBlue
@@ -71,9 +78,11 @@ private fun heatHint(distance: Int): String = when {
     else -> "Ice cold"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GuessingScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val stats by StatsStore.guessStats(context).collectAsState(initial = GuessStats(0, 0, 0))
 
@@ -86,6 +95,7 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
     var message by remember { mutableStateOf("I'm thinking of a number between 1 and ${difficulty.max}.") }
     var won by remember { mutableStateOf(false) }
     var lost by remember { mutableStateOf(false) }
+    var celebrating by remember { mutableStateOf(false) }
     val over = won || lost
     val hintsLeft = MAX_HINTS - shownHints.size
 
@@ -110,6 +120,8 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
         val d = abs(guess - target)
         if (d == 0) {
             won = true
+            celebrating = true
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             message = if (attempts == 1) "You got it in 1 try!" else "You got it in $attempts tries!"
             scope.launch { StatsStore.recordGuessWin(context, attempts) }
         } else if (attempts >= difficulty.maxAttempts) {
@@ -136,6 +148,7 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
 
     fun pressKey(key: String) {
         if (over) return
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         when (key) {
             "back" -> input = input.dropLast(1)
             "go" -> submit()
@@ -242,6 +255,26 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
             }
         }
         Keypad()
+        // Guess history: your past guesses, tinted by how hot each was.
+        if (guesses.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                guesses.takeLast(12).forEach { g ->
+                    val d = abs(g - target)
+                    val f = (1f - d / difficulty.max.toFloat()).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(lerp(AccentBlue, AccentRed, f).copy(alpha = 0.25f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text("$g", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             // The noHints flavor leaves the game pure - no hint button at all.
             if (BuildConfig.HINTS_ENABLED) {
@@ -272,6 +305,17 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
                         Text(hint, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
+            }
+        }
+        if (celebrating) {
+            Dialog(
+                onDismissRequest = { celebrating = false },
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                ),
+            ) {
+                Celebration { celebrating = false }
             }
         }
     }
