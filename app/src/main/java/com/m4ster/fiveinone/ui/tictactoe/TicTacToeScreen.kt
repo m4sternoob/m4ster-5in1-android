@@ -1,7 +1,7 @@
 package com.m4ster.fiveinone.ui.tictactoe
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -238,16 +238,24 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
                                 .clickable { tap(i) },
                             contentAlignment = Alignment.Center,
                         ) {
-                            AnimatedVisibility(
-                                visible = mark != ' ',
-                                enter = scaleIn(),
-                                label = "mark",
+                            // AnimatedVisibility needs a ColumnScope/RowScope receiver,
+                            // so the mark sits in a Column inside the Box.
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                Text(
-                                    mark.toString(),
-                                    fontSize = 44.sp,
-                                    color = if (mark == PLAYER) AccentBlue else AccentRed,
-                                )
+                                AnimatedVisibility(
+                                    visible = mark != ' ',
+                                    enter = scaleIn(),
+                                    label = "mark",
+                                ) {
+                                    Text(
+                                        mark.toString(),
+                                        fontSize = 44.sp,
+                                        color = if (mark == PLAYER) AccentBlue else AccentRed,
+                                    )
+                                }
                             }
                         }
                     }
