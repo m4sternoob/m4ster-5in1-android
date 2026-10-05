@@ -26,8 +26,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.theme.AccentRed
@@ -97,6 +102,7 @@ private fun bestCpuMove(b: CharArray): Int {
 
 @Composable
 fun TicTacToeScreen(modifier: Modifier = Modifier) {
+    val haptics = LocalHapticFeedback.current
     var mode by remember { mutableStateOf(TttMode.VsCpu) }
     var level by remember { mutableStateOf(CpuLevel.Hard) }
     var board by remember { mutableStateOf(CharArray(9) { ' ' }) }
@@ -107,6 +113,7 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
     var draws by remember { mutableStateOf(0) }
     var winLine by remember { mutableStateOf<IntArray?>(null) }
     var cpuThinking by remember { mutableStateOf(false) }
+    var celebrating by remember { mutableStateOf(false) }
 
     fun reset() {
         board = CharArray(9) { ' ' }
@@ -128,6 +135,10 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
 
     fun finish(result: Char?, line: IntArray?) {
         winLine = line
+        if (result != null) {
+            celebrating = true
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
         when (result) {
             PLAYER -> {
                 xScore++
@@ -147,6 +158,7 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
     fun tap(i: Int) {
         if (cpuThinking || winLine != null || winnerOf(board) != null || board[i] != ' ') return
         if (mode == TttMode.VsCpu && turn != PLAYER) return
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         val mark = turn
         val next = board.copyOf().also { it[i] = mark }
         board = next
@@ -263,5 +275,16 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
             }
         }
         Text(status, style = MaterialTheme.typography.bodyLarge)
+        if (celebrating) {
+            Dialog(
+                onDismissRequest = { celebrating = false },
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                ),
+            ) {
+                Celebration { celebrating = false }
+            }
+        }
     }
 }
