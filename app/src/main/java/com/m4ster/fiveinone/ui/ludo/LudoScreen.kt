@@ -1,6 +1,8 @@
 package com.m4ster.fiveinone.ui.ludo
 
 import android.graphics.Paint
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -19,19 +21,26 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.theme.AccentRed
@@ -39,20 +48,24 @@ import com.m4ster.fiveinone.ui.theme.BoardAlt
 import com.m4ster.fiveinone.ui.theme.BoardDark
 import com.m4ster.fiveinone.ui.theme.GridLine
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-/* Simplified Ludo, you vs CPU. 24-cell track (6 cols × 4 rows, boustrophedon)
-   plus a base strip. Two tokens each; roll a 6 to leave base; landing on an
-   enemy token off a safe square captures it; exact roll to finish (cell 24).
-   Roll a 6 for an extra turn. First to bring both tokens home wins. */
+/* Simplified Ludo: you vs CPU, or 2 players pass-and-play. 24-cell track
+   (6 cols × 4 rows, boustrophedon) plus a base strip. Two tokens each;
+   roll a 6 to leave base; landing on an enemy token off a safe square
+   captures it; exact roll to finish (cell 24). Roll a 6 for an extra turn.
+   First to bring both tokens home wins.
+   Juice: the dice tumbles before settling, tokens glide to their new cell,
+   captures flash. */
 
 private const val TRACK = 24
-private const val PLAYER = 0
-private const val CPU = 1
 private const val BASE = -1
 private const val HOME = 24
 
-private fun startOf(player: Int) = if (player == PLAYER) 0 else 12
+private enum class LudoMode { VsCpu, TwoPlayer }
+
+private fun startOf(side: Int) = if (side == 0) 0 else 12
 private val Safe = setOf(0, 12)
 
 /** Center of track cell i on a w×h board (track occupies rows 0..3). */
@@ -65,22 +78,30 @@ private fun trackCenter(i: Int, w: Float, h: Float): Offset {
     return Offset((col + 0.5f) * cw, (row + 0.5f) * ch)
 }
 
-/** Center of a base slot: row 4; player uses cols 1–2, CPU cols 4–5.
+/** Center of a base slot: row 4; side 0 uses cols 1–2, side 1 cols 4–5.
  *  Slightly below strip center so the top labels don't overlap tokens. */
-private fun baseCenter(player: Int, slot: Int, w: Float, h: Float): Offset {
+private fun baseCenter(side: Int, slot: Int, w: Float, h: Float): Offset {
     val cw = w / 6f
     val ch = h / 5f
-    val col = if (player == PLAYER) 1 + slot else 4 + slot
+    val col = if (side == 0) 1 + slot else 4 + slot
     return Offset((col + 0.5f) * cw, 4.62f * ch)
 }
+
+/** Pixel center of a token's cell (track, base, or home slot). */
+private fun spotCenter(side: Int, idx: Int, cell: Int, w: Float, h: Float): Offset =
+    if (cell == BASE || cell == HOME) baseCenter(side, idx, w, h)
+    else trackCenter(cell, w, h)
 
 private val DiceFaces = listOf("⚀", "⚁", "⚂", "⚃", "⚄", "⚅")
 
 @Composable
 fun LudoScreen(modifier: Modifier = Modifier) {
-    var playerTokens by remember { mutableStateOf(intArrayOf(BASE, BASE)) }
-    var cpuTokens by remember { mutableStateOf(intArrayOf(BASE, BASE)) }
-    var turn by remember { mutableStateOf(PLAYER) }
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    var mode by remember { mutableStateOf(LudoMode.VsCpu) }
+    var sideA by remember { mutableStateOf(intArrayOf(BASE, BASE)) }
+    var sideB by remember { mutableStateOf(intArrayOf(BASE, BASE)) }
+    var turn by remember { mutableStateOf(0) }
     var dice by remember { mutableStateOf<Int?>(null) }
     var movables by remember { mutableStateOf(emptyList<Int>()) }
     var message by remember { mutableStateOf("Your turn — tap Roll.") }
@@ -88,46 +109,74 @@ fun LudoScreen(modifier: Modifier = Modifier) {
     var cpuTrigger by remember { mutableStateOf(0) }
     var gameId by remember { mutableStateOf(0) }
     var boardPx by remember { mutableStateOf(IntSize.Zero) }
+    var tally by remember { mutableStateOf(listOf(0, 0)) }
+    // Token glide: (side, token idx, from cell) + 0→1 progress.
+    var glide by remember { mutableStateOf<Triple<Int, Int, Int>?>(null) }
+    var glideT by remember { mutableStateOf(1f) }
+    // Capture flash: (side, track cell) + 0→1 progress.
+    var captureFx by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var captureT by remember { mutableStateOf(0f) }
+    var celebrating by remember { mutableStateOf(false) }
+
+    fun tokens(s: Int) = if (s == 0) sideA else sideB
+    fun name(s: Int) = if (mode == LudoMode.VsCpu) (if (s == 0) "You" else "CPU")
+        else "Player ${s + 1}"
+
+    LaunchedEffect(glide) {
+        if (glide == null) return@LaunchedEffect
+        animate(0f, 1f, animationSpec = tween(380)) { glideT = it }
+        glide = null
+    }
+    LaunchedEffect(captureFx) {
+        if (captureFx == null) return@LaunchedEffect
+        animate(0f, 1f, animationSpec = tween(500)) { captureT = it }
+        captureFx = null
+    }
 
     fun reset() {
-        playerTokens = intArrayOf(BASE, BASE)
-        cpuTokens = intArrayOf(BASE, BASE)
-        turn = PLAYER
+        sideA = intArrayOf(BASE, BASE)
+        sideB = intArrayOf(BASE, BASE)
+        turn = 0
         dice = null
         movables = emptyList()
         winner = null
-        message = "Your turn — tap Roll."
+        glide = null
+        captureFx = null
+        message = if (mode == LudoMode.VsCpu) "Your turn — tap Roll." else "Player 1 — tap Roll."
         gameId++ // cancels any in-flight CPU turn
     }
 
-    fun movableFor(player: Int, roll: Int): List<Int> {
-        val tokens = if (player == PLAYER) playerTokens else cpuTokens
-        return tokens.indices.filter { t ->
-            val p = tokens[t]
+    fun setMode(m: LudoMode) {
+        mode = m
+        reset()
+    }
+
+    fun movableFor(s: Int, roll: Int): List<Int> {
+        val tk = tokens(s)
+        return tk.indices.filter { t ->
+            val p = tk[t]
             p != HOME && ((p == BASE && roll == 6) || (p >= 0 && p + roll <= HOME))
         }
     }
 
-    fun hasWon(player: Int): Boolean {
-        val tokens = if (player == PLAYER) playerTokens else cpuTokens
-        return tokens.all { it == HOME }
-    }
+    fun hasWon(s: Int) = tokens(s).all { it == HOME }
 
-    fun wouldCapture(player: Int, token: Int, roll: Int): Boolean {
-        val mine = if (player == PLAYER) playerTokens else cpuTokens
-        val theirs = if (player == PLAYER) cpuTokens else playerTokens
+    fun wouldCapture(s: Int, token: Int, roll: Int): Boolean {
+        val mine = tokens(s)
+        val theirs = tokens(1 - s)
         val from = mine[token]
-        val dest = if (from == BASE) startOf(player) else from + roll
+        val dest = if (from == BASE) startOf(s) else from + roll
         return dest != HOME && dest !in Safe && dest in theirs
     }
 
     /** Applies a move. Returns (extraTurn, captured). Always copies the
-     *  token arrays so Compose sees a new value and recomposes. */
-    fun doMove(player: Int, token: Int, roll: Int): Pair<Boolean, Boolean> {
-        val mine = (if (player == PLAYER) playerTokens else cpuTokens).copyOf()
-        val theirs = (if (player == PLAYER) cpuTokens else playerTokens).copyOf()
-        var dest = mine[token]
-        dest = if (dest == BASE) startOf(player) else dest + roll
+     *  token arrays so Compose sees a new value and recomposes. Kicks off
+     *  the glide animation from the token's old cell. */
+    fun doMove(s: Int, token: Int, roll: Int): Pair<Boolean, Boolean> {
+        val mine = tokens(s).copyOf()
+        val theirs = tokens(1 - s).copyOf()
+        val fromCell = mine[token]
+        val dest = if (fromCell == BASE) startOf(s) else fromCell + roll
         var captured = false
         if (dest == HOME) {
             mine[token] = HOME
@@ -142,79 +191,109 @@ fun LudoScreen(modifier: Modifier = Modifier) {
             }
             mine[token] = dest
         }
-        if (player == PLAYER) {
-            playerTokens = mine
-            cpuTokens = theirs
+        if (s == 0) {
+            sideA = mine
+            sideB = theirs
         } else {
-            cpuTokens = mine
-            playerTokens = theirs
+            sideB = mine
+            sideA = theirs
         }
+        glideT = 0f
+        glide = Triple(s, token, fromCell)
         return (roll == 6) to captured
     }
 
-    fun playerRoll() {
-        if (turn != PLAYER || dice != null || winner != null) return
-        val r = (1..6).random()
-        dice = r
-        val moves = movableFor(PLAYER, r)
-        movables = moves
-        if (moves.isEmpty()) {
-            message = "You rolled $r — no moves possible."
-            turn = CPU
-            dice = null
-            cpuTrigger++
-        } else {
-            message = "You rolled $r — tap a glowing token."
+    /** Advance after a turn: extra roll keeps the same side going. */
+    fun advanceTurn(s: Int, extra: Boolean) {
+        dice = null
+        if (!extra) {
+            turn = 1 - s
+            if (mode == LudoMode.VsCpu && turn == 1) cpuTrigger++
+        } else if (mode == LudoMode.VsCpu && s == 1) {
+            cpuTrigger++ // CPU chains its extra turn
         }
     }
 
-    fun playerMoveToken(t: Int) {
+    fun roll(s: Int) {
+        if (turn != s || dice != null || winner != null) return
+        if (mode == LudoMode.VsCpu && s == 1) return // CPU rolls itself
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        val r = (1..6).random()
+        val id = gameId
+        scope.launch {
+            repeat(6) {
+                dice = (1..6).random()
+                delay(70)
+            }
+            if (id != gameId) return@launch
+            dice = r
+            val moves = movableFor(s, r)
+            movables = moves
+            if (moves.isEmpty()) {
+                message = "${name(s)} rolled $r — no moves possible."
+                advanceTurn(s, false)
+            } else {
+                message = "${name(s)} rolled $r — tap a glowing token."
+            }
+        }
+    }
+
+    fun moveToken(s: Int, t: Int) {
         val r = dice ?: return
-        if (turn != PLAYER || t !in movables || winner != null) return
-        val (extra, captured) = doMove(PLAYER, t, r)
+        if (turn != s || t !in movables || winner != null) return
+        if (mode == LudoMode.VsCpu && s == 1) return
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        val (extra, captured) = doMove(s, t, r)
         dice = null
         movables = emptyList()
-        if (hasWon(PLAYER)) {
-            winner = PLAYER
-            message = "You brought both tokens home — you win!"
+        if (captured) captureFx = s to tokens(s)[t]
+        if (hasWon(s)) {
+            winner = s
+            tally = tally.toMutableList().also { it[s]++ }
+            celebrating = true
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            message = "${name(s)} brought both tokens home — ${name(s)} wins!"
             return
         }
         message = when {
-            captured -> "You captured a CPU token!"
-            extra -> "You rolled a 6 — roll again!"
-            else -> "CPU's turn…"
+            captured -> "${name(s)} captured a token!"
+            extra -> "${name(s)} rolled a 6 — roll again!"
+            else -> "${name(1 - s)}'s turn…"
         }
-        if (!extra) {
-            turn = CPU
-            cpuTrigger++
-        }
+        advanceTurn(s, extra)
     }
 
     /** One CPU roll+move. Returns true if the CPU earned another turn. */
-    fun cpuRollOnce(): Boolean {
+    suspend fun cpuRollOnce(id: Int): Boolean {
+        repeat(6) {
+            dice = (1..6).random()
+            delay(70)
+        }
+        if (id != gameId) return false
         val r = (1..6).random()
         dice = r
-        val moves = movableFor(CPU, r)
+        val moves = movableFor(1, r)
         var extra = false
         if (moves.isNotEmpty()) {
             // Prefer captures, otherwise any legal move.
-            val pick = moves.firstOrNull { wouldCapture(CPU, it, r) } ?: moves.random()
-            val (e, captured) = doMove(CPU, pick, r)
+            val pick = moves.firstOrNull { wouldCapture(1, it, r) } ?: moves.random()
+            val (e, captured) = doMove(1, pick, r)
             extra = e
+            if (captured) captureFx = 1 to tokens(1)[pick]
             message = if (captured) "CPU rolled $r and captured your token!" else "CPU rolled $r."
         } else {
             message = "CPU rolled $r — no moves."
         }
-        if (hasWon(CPU)) {
-            winner = CPU
+        if (hasWon(1)) {
+            winner = 1
+            tally = tally.toMutableList().also { it[1]++ }
+            celebrating = true
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             message = "CPU brought both tokens home — CPU wins."
             dice = null
             return false
         }
-        if (!extra) {
-            turn = PLAYER
-            dice = null
-        }
+        advanceTurn(1, extra)
         return extra
     }
 
@@ -222,13 +301,13 @@ fun LudoScreen(modifier: Modifier = Modifier) {
     // turn when the player hits Restart mid-CPU-turn.
     LaunchedEffect(cpuTrigger, gameId) {
         val id = gameId
-        if (cpuTrigger == 0 || turn != CPU) return@LaunchedEffect
+        if (mode != LudoMode.VsCpu || cpuTrigger == 0 || turn != 1) return@LaunchedEffect
         delay(800)
         if (id != gameId) return@LaunchedEffect
-        var again = cpuRollOnce()
+        var again = cpuRollOnce(id)
         while (again && id == gameId && winner == null) {
             delay(800)
-            again = cpuRollOnce()
+            again = cpuRollOnce(id)
         }
     }
 
@@ -240,6 +319,11 @@ fun LudoScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    // In VsCpu the human is always side 0; in 2P the tapping side is `turn`.
+    val tapSide = turn
+    val canTap = dice != null && winner == null &&
+        (mode == LudoMode.TwoPlayer || turn == 0)
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -247,6 +331,18 @@ fun LudoScreen(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                setMode(if (mode == LudoMode.VsCpu) LudoMode.TwoPlayer else LudoMode.VsCpu)
+            }) {
+                Text(if (mode == LudoMode.VsCpu) "vs CPU" else "2 Players")
+            }
+            OutlinedButton(onClick = ::reset) { Text("Restart") }
+        }
+        Text(
+            "${name(0)} ${tally[0]} · ${name(1)} ${tally[1]}",
+            style = MaterialTheme.typography.labelLarge,
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -254,12 +350,12 @@ fun LudoScreen(modifier: Modifier = Modifier) {
         ) {
             Text(
                 when {
-                    winner == PLAYER -> "You win!"
-                    winner == CPU -> "CPU wins!"
-                    turn == PLAYER -> "Your turn"
-                    else -> "CPU's turn"
+                    winner != null -> "${name(winner!!)} wins!"
+                    mode == LudoMode.VsCpu && turn == 0 -> "Your turn"
+                    else -> "${name(turn)}'s turn"
                 },
                 style = MaterialTheme.typography.titleMedium,
+                color = if (winner == null) AccentGreen else MaterialTheme.colorScheme.onSurface,
             )
             Text(dice?.let { DiceFaces[it - 1] } ?: "🎲", fontSize = 36.sp)
         }
@@ -268,24 +364,25 @@ fun LudoScreen(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .aspectRatio(6f / 5f)
                 .onSizeChanged { boardPx = it }
-                .pointerInput(dice, movables, turn, winner, boardPx, playerTokens) {
+                .pointerInput(dice, movables, turn, winner, boardPx, sideA, sideB, mode) {
                     detectTapGestures { tap ->
-                        if (turn != PLAYER || dice == null || winner != null) return@detectTapGestures
+                        if (!canTap) return@detectTapGestures
                         if (boardPx == IntSize.Zero) return@detectTapGestures
                         val w = boardPx.width.toFloat()
                         val h = boardPx.height.toFloat()
                         val cw = w / 6f
                         val ch = h / 5f
+                        val tk = tokens(tapSide)
                         val hit = movables.firstOrNull { t ->
-                            val p = playerTokens[t]
+                            val p = tk[t]
                             val c = when {
-                                p == BASE -> baseCenter(PLAYER, t, w, h)
+                                p == BASE -> baseCenter(tapSide, t, w, h)
                                 p in 0 until TRACK -> trackCenter(p, w, h)
                                 else -> null // HOME tokens aren't tappable
                             } ?: return@firstOrNull false
                             abs(tap.x - c.x) <= cw * 0.5f && abs(tap.y - c.y) <= ch * 0.5f
                         }
-                        if (hit != null) playerMoveToken(hit)
+                        if (hit != null) moveToken(tapSide, hit)
                     }
                 },
         ) {
@@ -311,13 +408,24 @@ fun LudoScreen(modifier: Modifier = Modifier) {
             // Start markers (under tokens).
             drawCircle(AccentGreen, cw * 0.1f, trackCenter(0, w, h))
             drawCircle(AccentGreen, cw * 0.1f, trackCenter(12, w, h))
-            val pDone = playerTokens.count { it == HOME }
-            val cDone = cpuTokens.count { it == HOME }
+            val done0 = sideA.count { it == HOME }
+            val done1 = sideB.count { it == HOME }
             labelPaint.textSize = ch * 0.22f
             val native = drawContext.canvas.nativeCanvas
             // Labels sit at the top of the strip; tokens are centered below them.
-            native.drawText("YOU · $pDone/2 home", 1.5f * cw, 4.3f * ch, labelPaint)
-            native.drawText("CPU · $cDone/2 home", 4.5f * cw, 4.3f * ch, labelPaint)
+            native.drawText("${name(0).uppercase()} · $done0/2 home", 1.5f * cw, 4.3f * ch, labelPaint)
+            native.drawText("${name(1).uppercase()} · $done1/2 home", 4.5f * cw, 4.3f * ch, labelPaint)
+
+            // Capture flash: an expanding, fading ring on the capture cell.
+            captureFx?.let { (_, cell) ->
+                val c = trackCenter(cell, w, h)
+                drawCircle(
+                    Color.White.copy(alpha = 1f - captureT),
+                    radius = cw * (0.32f + 0.4f * captureT),
+                    center = c,
+                    style = Stroke(cw * 0.07f),
+                )
+            }
 
             fun drawToken(center: Offset, color: Color, glow: Boolean, parked: Boolean) {
                 val radius = if (parked) cw * 0.18f else cw * 0.3f
@@ -325,29 +433,30 @@ fun LudoScreen(modifier: Modifier = Modifier) {
                 drawCircle(color, radius, center)
                 drawCircle(Color.White, radius, center, style = Stroke(cw * 0.05f))
             }
-            fun tokenSpot(player: Int, idx: Int): Offset? {
-                val p = (if (player == PLAYER) playerTokens else cpuTokens)[idx]
-                return when {
-                    p == BASE || p == HOME -> baseCenter(player, idx, w, h)
-                    else -> trackCenter(p, w, h)
+            for (s in 0..1) {
+                for (idx in 0..1) {
+                    val tk = tokens(s)
+                    val to = spotCenter(s, idx, tk[idx], w, h)
+                    // Glide the moving token from its old cell to its new one.
+                    val g = glide
+                    val center = if (g != null && g.first == s && g.second == idx) {
+                        lerp(spotCenter(s, idx, g.third, w, h), to, glideT)
+                    } else to
+                    drawToken(
+                        center,
+                        if (s == 0) AccentBlue else AccentRed,
+                        glow = s == tapSide && dice != null && idx in movables && canTap,
+                        parked = tk[idx] == HOME,
+                    )
                 }
-            }
-            for (idx in 0..1) {
-                val pSpot = tokenSpot(PLAYER, idx) ?: continue
-                drawToken(
-                    pSpot, AccentBlue,
-                    glow = turn == PLAYER && dice != null && idx in movables,
-                    parked = playerTokens[idx] == HOME,
-                )
-                val cSpot = tokenSpot(CPU, idx) ?: continue
-                drawToken(cSpot, AccentRed, glow = false, parked = cpuTokens[idx] == HOME)
             }
         }
         Text(message, style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = ::playerRoll,
-                enabled = turn == PLAYER && dice == null && winner == null,
+                onClick = { roll(turn) },
+                enabled = dice == null && winner == null &&
+                    (mode == LudoMode.TwoPlayer || turn == 0),
             ) { Text("Roll") }
             OutlinedButton(onClick = ::reset) { Text("Restart") }
         }
@@ -356,5 +465,16 @@ fun LudoScreen(modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (celebrating) {
+            Dialog(
+                onDismissRequest = { celebrating = false },
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                ),
+            ) {
+                Celebration { celebrating = false }
+            }
+        }
     }
 }
