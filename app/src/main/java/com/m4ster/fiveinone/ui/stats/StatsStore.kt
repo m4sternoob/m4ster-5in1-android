@@ -44,6 +44,10 @@ object StatsStore {
         }
     }
 
+    suspend fun clearAll(context: Context) {
+        context.fiveInOneDataStore.edit { it.clear() }
+    }
+
     fun snakeBest(context: Context): Flow<Int> =
         context.fiveInOneDataStore.data.map { p -> p[SNAKE_BEST] ?: 0 }
 
