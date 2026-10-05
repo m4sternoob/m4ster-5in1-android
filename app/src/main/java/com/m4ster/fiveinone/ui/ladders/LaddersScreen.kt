@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,8 +27,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.ui.components.Celebration
+import com.m4ster.fiveinone.ui.theme.AccentAmber
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.theme.AccentRed
@@ -35,10 +42,13 @@ import com.m4ster.fiveinone.ui.theme.BoardAlt
 import com.m4ster.fiveinone.ui.theme.BoardDark
 import com.m4ster.fiveinone.ui.theme.GridLine
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-/* Snakes & Ladders: 1 player vs CPU, or 2 players pass-and-play.
+/* Snakes & Ladders: 1 player vs CPU, or 2–4 players pass-and-play.
    10×10 boustrophedon board, portals drawn as colored links.
-   Exact roll needed to finish. CPU moves on a short delay. */
+   Tokens hop square by square, the dice tumbles before settling,
+   and portals flash on the way through. Exact roll needed to finish.
+   CPU moves on a short delay. */
 
 private val Portals = mapOf(
     // ladders
@@ -48,9 +58,9 @@ private val Portals = mapOf(
 )
 private val LadderFeet = setOf(4, 13, 33, 42, 50, 62, 74)
 
-private enum class Mode { VsCpu, TwoPlayer }
+private enum class Mode { VsCpu, PassAndPlay }
 
-private val TokenColors = listOf(AccentBlue, AccentRed)
+private val TokenColors = listOf(AccentBlue, AccentRed, AccentGreen, AccentAmber)
 
 /** Center of square n (1..100) on a size×size board. Row 1 is the bottom. */
 private fun cellCenter(n: Int, size: Float): Offset {
@@ -64,7 +74,7 @@ private fun cellCenter(n: Int, size: Float): Offset {
 
 /** Triple(landedSquare, finalSquare, portalKind: "ladder"/"snake"/null). */
 private fun resolveMove(from: Int, roll: Int): Triple<Int, Int, String?> {
-    val landed = (if (from == 0) 0 else from) + roll
+    val landed = from + roll
     if (landed > 100) return Triple(from, from, null) // need exact roll
     val dest = Portals[landed]
     return if (dest != null) {
@@ -78,7 +88,10 @@ private val DiceFaces = listOf("⚀", "⚁", "⚂", "⚃", "⚄", "⚅")
 
 @Composable
 fun LaddersScreen(modifier: Modifier = Modifier) {
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     var mode by remember { mutableStateOf<Mode?>(null) }
+    var playerCount by remember { mutableStateOf(2) }
     var positions by remember { mutableStateOf(listOf(0, 0)) } // 0 = off the board
     var turn by remember { mutableStateOf(0) }
     var dice by remember { mutableStateOf<Int?>(null) }
@@ -86,24 +99,44 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
     var winner by remember { mutableStateOf<Int?>(null) }
     var cpuTrigger by remember { mutableStateOf(0) }
     var gameId by remember { mutableStateOf(0) }
+    var animating by remember { mutableStateOf(false) }
+    var animPositions by remember { mutableStateOf<List<Int>?>(null) }
+    var portalFlash by remember { mutableStateOf<Int?>(null) }
+    var tally by remember { mutableStateOf(listOf(0, 0)) }
+    var celebrating by remember { mutableStateOf(false) }
 
     val names = when (mode) {
         Mode.VsCpu -> listOf("You", "CPU")
-        Mode.TwoPlayer -> listOf("Player 1", "Player 2")
+        Mode.PassAndPlay -> (1..playerCount).map { "Player $it" }
         null -> listOf("Player 1", "Player 2")
     }
+    // VsCpu is always 2 sides; pass-and-play uses the picked count.
+    // A fun (not a val): mode/playerCount are read synchronously, so this
+    // is always fresh — even inside reset() right after picking a mode.
+    fun sideCount() = if (mode == Mode.VsCpu) 2 else playerCount
 
     fun reset() {
-        positions = listOf(0, 0)
+        positions = List(sideCount()) { 0 }
+        tally = List(sideCount()) { 0 }
         turn = 0
         dice = null
         winner = null
+        animating = false
+        animPositions = null
+        portalFlash = null
         message = "Race to 100 — tap Roll!"
-        gameId++ // cancels any in-flight CPU turn
+        gameId++ // cancels any in-flight CPU turn or token animation
     }
 
-    fun pickMode(m: Mode) {
-        mode = m
+    fun pickVsCpu() {
+        playerCount = 2
+        mode = Mode.VsCpu
+        reset()
+    }
+
+    fun pickPassAndPlay(n: Int) {
+        playerCount = n
+        mode = Mode.PassAndPlay
         reset()
     }
 
@@ -119,27 +152,62 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    /** Applies one roll for player `who` and advances the turn. */
-    fun applyRoll(who: Int, roll: Int) {
+    /** One full turn with juice: the dice tumbles, the token hops square
+        by square, portals flash. gameId aborts a stale turn on reset. */
+    suspend fun animatedTurn(who: Int, roll: Int) {
+        val id = gameId
+        animating = true
+        repeat(6) {
+            dice = (1..6).random()
+            delay(70)
+        }
+        if (id != gameId) return
         dice = roll
-        val (_, final, _) = resolveMove(positions[who], roll)
-        message = moveMessage(names[who], positions[who], roll)
-        positions = positions.toMutableList().also { it[who] = final }
+        delay(300)
+        if (id != gameId) return
+        val from = positions[who]
+        val (landed, final, portal) = resolveMove(from, roll)
+        var cur = from
+        val path = if (from == 0) listOf(landed) else ((from + 1)..landed).toList()
+        for (sq in path) {
+            cur = sq
+            animPositions = positions.toMutableList().also { it[who] = cur }
+            delay(130)
+            if (id != gameId) return
+        }
+        if (portal != null && final != landed) {
+            portalFlash = who
+            delay(400)
+            if (id != gameId) return
+            cur = final
+            animPositions = positions.toMutableList().also { it[who] = cur }
+            portalFlash = null
+            delay(250)
+            if (id != gameId) return
+        }
+        positions = positions.toMutableList().also { it[who] = cur }
+        animPositions = null
+        message = moveMessage(names[who], from, roll)
         if (final == 100) {
             winner = who
+            tally = tally.toMutableList().also { it[who]++ }
+            celebrating = true
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             val verb = if (names[who] == "You") "win" else "wins"
             message = "${names[who]} rolled $roll and reached 100 — ${names[who]} $verb!"
         } else {
-            turn = 1 - who
+            turn = (who + 1) % sideCount()
             if (mode == Mode.VsCpu && turn == 1) cpuTrigger++
         }
+        animating = false
     }
 
     fun humanRoll() {
-        if (mode == null || winner != null) return
+        if (mode == null || winner != null || animating) return
         // In VsCpu mode the CPU (player 2) rolls itself.
         if (mode == Mode.VsCpu && turn == 1) return
-        applyRoll(turn, (1..6).random())
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        scope.launch { animatedTurn(turn, (1..6).random()) }
     }
 
     // CPU acts on its own beat. gameId in the key cancels a stale turn on reset.
@@ -148,7 +216,7 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         if (mode != Mode.VsCpu || cpuTrigger == 0 || turn != 1) return@LaunchedEffect
         delay(800)
         if (id != gameId) return@LaunchedEffect
-        applyRoll(1, (1..6).random())
+        animatedTurn(1, (1..6).random())
     }
 
     val labelPaint = remember {
@@ -170,18 +238,20 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         ) {
             Text("Snakes & Ladders", style = MaterialTheme.typography.headlineMedium)
             Text("Race to 100. Land on a ladder to climb, dodge the snakes.")
-            Button(onClick = { pickMode(Mode.VsCpu) }) { Text("1 Player (vs CPU)") }
-            Button(onClick = { pickMode(Mode.TwoPlayer) }) { Text("2 Players (pass & play)") }
+            Button(onClick = ::pickVsCpu) { Text("1 Player (vs CPU)") }
+            Button(onClick = { pickPassAndPlay(2) }) { Text("2 Players") }
+            Button(onClick = { pickPassAndPlay(3) }) { Text("3 Players") }
+            Button(onClick = { pickPassAndPlay(4) }) { Text("4 Players") }
         }
         return
     }
 
-    val turnLabel = when {
-        mode == Mode.VsCpu && turn == 0 -> "Your turn"
-        mode == Mode.VsCpu -> "CPU's turn"
+    val turnLabel = when (mode) {
+        Mode.VsCpu -> if (turn == 0) "Your turn" else "CPU's turn"
         else -> "${names[turn]}'s turn"
     }
     val posLabel = { i: Int -> if (positions[i] == 0) "start" else "${positions[i]}" }
+    val shown = animPositions ?: positions
 
     Column(
         modifier = modifier
@@ -190,6 +260,10 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Text(
+            names.mapIndexed { i, n -> "$n ${tally[i]}" }.joinToString(" · "),
+            style = MaterialTheme.typography.labelLarge,
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -233,23 +307,32 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 val c = cellCenter(n, size.width)
                 native.drawText(n.toString(), c.x, c.y + cell * 0.09f, labelPaint)
             }
-            // Tokens (offset when sharing a square).
-            val shared = positions[0] != 0 && positions[0] == positions[1]
-            positions.forEachIndexed { i, pos ->
+            // Tokens, fanned out when several share a square.
+            // Ring flashes on the token going through a portal.
+            val bySquare = shown.mapIndexed { i, pos -> i to pos }
+                .filter { it.second != 0 }
+                .groupBy { it.second }
+            shown.forEachIndexed { i, pos ->
                 if (pos == 0) return@forEachIndexed
                 val c = cellCenter(pos, size.width)
-                val shift = if (shared) (if (i == 0) -cell * 0.18f else cell * 0.18f) else 0f
-                val center = Offset(c.x + shift, c.y)
-                drawCircle(TokenColors[i], cell * 0.3f, center)
-                drawCircle(Color.White, cell * 0.3f, center, style = Stroke(cell * 0.06f))
+                val mates = bySquare[pos] ?: emptyList()
+                val slot = mates.indexOfFirst { it.first == i }
+                val spread = if (mates.size > 1)
+                    (slot - (mates.size - 1) / 2f) * cell * 0.34f else 0f
+                val center = Offset(c.x + spread, c.y)
+                drawCircle(TokenColors[i], cell * 0.26f, center)
+                drawCircle(Color.White, cell * 0.26f, center, style = Stroke(cell * 0.06f))
+                if (portalFlash == i) {
+                    drawCircle(Color.White, cell * 0.4f, center, style = Stroke(cell * 0.09f))
+                }
             }
         }
-        Text("${names[0]}: ${posLabel(0)}   ${names[1]}: ${posLabel(1)}")
+        Text(names.mapIndexed { i, n -> "$n: ${posLabel(i)}" }.joinToString("   "))
         Text(message, style = MaterialTheme.typography.bodyMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = ::humanRoll,
-                enabled = winner == null && !(mode == Mode.VsCpu && turn == 1),
+                enabled = winner == null && !animating && !(mode == Mode.VsCpu && turn == 1),
             ) { Text("Roll") }
             OutlinedButton(onClick = ::reset) { Text("Restart") }
             OutlinedButton(onClick = { gameId++; mode = null }) { Text("Mode") }
@@ -265,6 +348,17 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.headlineSmall,
                 color = TokenColors[w],
             )
+        }
+        if (celebrating) {
+            Dialog(
+                onDismissRequest = { celebrating = false },
+                properties = DialogProperties(
+                    dismissOnClickOutside = false,
+                    usePlatformDefaultWidth = false,
+                ),
+            ) {
+                Celebration { celebrating = false }
+            }
         }
     }
 }
