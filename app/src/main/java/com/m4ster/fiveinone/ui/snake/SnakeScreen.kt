@@ -39,13 +39,23 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.random.Random
 
-/* Basic canvas snake. A coroutine loop steps the game; swipe or the
-   on-screen D-pad steers. Immutable snapshots (new lists each step)
+/* Canvas snake. A coroutine loop steps the game; swipe or the on-screen
+   D-pad steers. Walls are solid (green frame), the head is red, and the
+   pace quickens every 5 dots. Immutable snapshots (new lists each step)
    keep recomposition predictable. */
 
 private const val COLS = 20
 private const val ROWS = 20
-private const val STEP_MS = 170L
+private const val BASE_STEP_MS = 170L
+private const val MIN_STEP_MS = 70L
+private const val DOTS_PER_LEVEL = 5
+private const val SPEEDUP_PER_LEVEL_MS = 15L
+
+/* Faster every 5 dots: 170ms a step at start, down to a 70ms floor. */
+private fun stepMsFor(score: Int): Long {
+    val levels = score / DOTS_PER_LEVEL
+    return (BASE_STEP_MS - levels * SPEEDUP_PER_LEVEL_MS).coerceAtLeast(MIN_STEP_MS)
+}
 
 private enum class Dir(val dx: Int, val dy: Int) {
     Up(0, -1),
@@ -107,9 +117,10 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
     }
 
     // Game loop: restarts whenever `running` toggles; exits when it goes false.
+    // Pace quickens as the score climbs — read live each step.
     LaunchedEffect(running) {
         while (running) {
-            delay(STEP_MS)
+            delay(stepMsFor(score))
             step()
         }
     }
@@ -138,7 +149,8 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Score: $score", style = MaterialTheme.typography.headlineSmall)
+        val level = score / DOTS_PER_LEVEL + 1
+        Text("Score: $score · Level $level", style = MaterialTheme.typography.headlineSmall)
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -155,17 +167,24 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                     }
                 },
         ) {
-            val cell = size.width / COLS
-            drawRect(Color(0xFF0B1220), size = size)
+            // Green frame = solid walls. Board sits inset; everything
+            // draws in board coordinates.
+            drawRect(Color(0xFF16A34A), size = size)
+            val bw = size.width * 0.02f
+            val board = Size(size.width - 2 * bw, size.height - 2 * bw)
+            val origin = Offset(bw, bw)
+            drawRect(Color(0xFF0B1220), topLeft = origin, size = board)
+            val cell = board.width / COLS
+            fun px(p: Pos) = Offset(origin.x + p.x * cell, origin.y + p.y * cell)
             drawRect(
                 color = Color(0xFFF87171),
-                topLeft = Offset(food.x * cell, food.y * cell),
+                topLeft = px(food),
                 size = Size(cell, cell),
             )
             snake.forEachIndexed { i, p ->
                 drawRect(
-                    color = if (i == 0) Color(0xFF4ADE80) else Color(0xFF22C55E),
-                    topLeft = Offset(p.x * cell, p.y * cell),
+                    color = if (i == 0) Color(0xFFEF4444) else Color(0xFF22C55E),
+                    topLeft = px(p),
                     size = Size(cell, cell),
                 )
             }
@@ -193,7 +212,7 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
             }
         }
         Text(
-            "Swipe on the board or use the pad to steer",
+            "Swipe on the board or use the pad to steer — the green border is solid",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
