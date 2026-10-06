@@ -22,6 +22,7 @@ import com.m4ster.fiveinone.ui.guessing.GuessingScreen
 import com.m4ster.fiveinone.ui.home.HomeScreen
 import com.m4ster.fiveinone.ui.ladders.LaddersScreen
 import com.m4ster.fiveinone.ui.ludo.LudoScreen
+import com.m4ster.fiveinone.ui.memory.MemoryScreen
 import com.m4ster.fiveinone.ui.settings.SettingsScreen
 import com.m4ster.fiveinone.ui.snake.SnakeScreen
 import com.m4ster.fiveinone.ui.theme.FiveInOneTheme
@@ -60,6 +61,9 @@ class MainActivity : ComponentActivity() {
                         }
                         Screen.TicTacToe -> GameScaffold("Tic-Tac-Toe", goHome) { p ->
                             TicTacToeScreen(Modifier.padding(p))
+                        }
+                        Screen.Memory -> GameScaffold("Memory Match", goHome) { p ->
+                            MemoryScreen(Modifier.padding(p))
                         }
                         Screen.Settings -> GameScaffold("Settings", goHome) { p ->
                             SettingsScreen(Modifier.padding(p))

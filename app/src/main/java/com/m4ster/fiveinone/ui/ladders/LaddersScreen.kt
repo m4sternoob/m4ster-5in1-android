@@ -187,7 +187,6 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         }
         positions = positions.toMutableList().also { it[who] = cur }
         animPositions = null
-        message = moveMessage(names[who], from, roll)
         if (final == 100) {
             winner = who
             tally = tally.toMutableList().also { it[who]++ }
@@ -195,7 +194,13 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             val verb = if (names[who] == "You") "win" else "wins"
             message = "${names[who]} rolled $roll and reached 100 — ${names[who]} $verb!"
+        } else if (roll == 6) {
+            // Classic rule: a 6 earns another roll. Turn stays with the
+            // same player; the CPU re-triggers itself in VsCpu mode.
+            message = moveMessage(names[who], from, roll) + " — rolled a 6, roll again!"
+            if (mode == Mode.VsCpu && who == 1) cpuTrigger++
         } else {
+            message = moveMessage(names[who], from, roll)
             turn = (who + 1) % sideCount()
             if (mode == Mode.VsCpu && turn == 1) cpuTrigger++
         }

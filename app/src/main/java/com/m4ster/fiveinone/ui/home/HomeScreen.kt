@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Grid3x3
 import androidx.compose.material.icons.filled.Grid4x4
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
@@ -53,6 +54,7 @@ private val Games = listOf(
     GameEntry(Screen.Ladders, "Snakes & Ladders", "Race to square 100 — vs CPU or a friend", Icons.Filled.Casino),
     GameEntry(Screen.Ludo, "Ludo", "You vs CPU — bring both tokens home", Icons.Filled.Grid4x4),
     GameEntry(Screen.TicTacToe, "Tic-Tac-Toe", "Vs CPU or a friend — minimax on Hard", Icons.Filled.Grid3x3),
+    GameEntry(Screen.Memory, "Memory Match", "Flip pairs — fewest moves wins", Icons.Filled.GridView),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,11 +63,13 @@ fun HomeScreen(onOpen: (Screen) -> Unit) {
     val context = LocalContext.current
     val guessStats by StatsStore.guessStats(context).collectAsState(initial = GuessStats(0, 0, 0))
     val snakeBest by StatsStore.snakeBest(context).collectAsState(initial = 0)
+    val memoryBest by StatsStore.memoryBest(context).collectAsState(initial = 0)
     // Live stat line under the blurb, only once there's something to show.
     val statFor: Map<Screen, String> = mapOf(
         Screen.Guessing to if (guessStats.wins > 0)
             "Wins ${guessStats.wins} · Streak ${guessStats.streak}" else "",
         Screen.Snake to if (snakeBest > 0) "Best $snakeBest" else "",
+        Screen.Memory to if (memoryBest > 0) "Best $memoryBest moves" else "",
     )
     Scaffold(
         topBar = {

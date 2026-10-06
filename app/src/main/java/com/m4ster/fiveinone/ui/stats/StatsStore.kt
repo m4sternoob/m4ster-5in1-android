@@ -7,8 +7,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/* Tiny persisted stats: guessing wins/best/streak and the snake high
-   score. DataStore, read as Flows, written from a coroutine scope. */
+/* Tiny persisted stats: guessing wins/best/streak, the snake high
+   score, and the memory fewest-moves best. DataStore, read as Flows,
+   written from a coroutine scope. */
 
 val Context.fiveInOneDataStore by preferencesDataStore("fiveinone")
 
@@ -19,6 +20,7 @@ object StatsStore {
     private val GUESS_BEST = intPreferencesKey("guess_best")
     private val GUESS_STREAK = intPreferencesKey("guess_streak")
     private val SNAKE_BEST = intPreferencesKey("snake_best")
+    private val MEMORY_BEST = intPreferencesKey("memory_best")
 
     fun guessStats(context: Context): Flow<GuessStats> =
         context.fiveInOneDataStore.data.map { p ->
@@ -54,6 +56,16 @@ object StatsStore {
     suspend fun recordSnakeScore(context: Context, score: Int) {
         context.fiveInOneDataStore.edit { p ->
             if (score > (p[SNAKE_BEST] ?: 0)) p[SNAKE_BEST] = score
+        }
+    }
+
+    fun memoryBest(context: Context): Flow<Int> =
+        context.fiveInOneDataStore.data.map { p -> p[MEMORY_BEST] ?: 0 }
+
+    suspend fun recordMemoryMoves(context: Context, moves: Int) {
+        context.fiveInOneDataStore.edit { p ->
+            val best = p[MEMORY_BEST] ?: 0
+            if (best == 0 || moves < best) p[MEMORY_BEST] = moves
         }
     }
 }
