@@ -1,6 +1,6 @@
 package com.m4ster.fiveinone.ui
 
-/* The whole app is six game screens plus home and settings. No navigation
+/* The whole app is seven game screens plus home and settings. No navigation
    library: a single state in MainActivity switches screens, which keeps the
    back-stack trivial (every screen has an explicit back button). */
 
@@ -12,5 +12,6 @@ sealed interface Screen {
     data object Ludo : Screen
     data object TicTacToe : Screen
     data object Memory : Screen
+    data object Twenty48 : Screen
     data object Settings : Screen
 }

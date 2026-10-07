@@ -27,6 +27,7 @@ import com.m4ster.fiveinone.ui.settings.SettingsScreen
 import com.m4ster.fiveinone.ui.snake.SnakeScreen
 import com.m4ster.fiveinone.ui.theme.FiveInOneTheme
 import com.m4ster.fiveinone.ui.tictactoe.TicTacToeScreen
+import com.m4ster.fiveinone.ui.twenty48.Twenty48Screen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +65,9 @@ class MainActivity : ComponentActivity() {
                         }
                         Screen.Memory -> GameScaffold("Memory Match", goHome) { p ->
                             MemoryScreen(Modifier.padding(p))
+                        }
+                        Screen.Twenty48 -> GameScaffold("2048", goHome) { p ->
+                            Twenty48Screen(Modifier.padding(p))
                         }
                         Screen.Settings -> GameScaffold("Settings", goHome) { p ->
                             SettingsScreen(Modifier.padding(p))
