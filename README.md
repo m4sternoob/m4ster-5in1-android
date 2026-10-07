@@ -1,12 +1,12 @@
 # 5IN1 — Android
 
-Seven classic games in one native Android app. Clean, readable Kotlin +
+Eight classic games in one native Android app. Clean, readable Kotlin +
 Jetpack Compose (Material3) code, no exotic dependencies. Fully offline:
 no accounts, ads, analytics, or network permission.
 
 Package: `com.m4ster.fiveinone` · portrait only · minSdk 26 · targetSdk 34
 
-## The seven games
+## The eight games
 
 | Game | How it plays |
 |---|---|
@@ -17,6 +17,7 @@ Package: `com.m4ster.fiveinone` · portrait only · minSdk 26 · targetSdk 34
 | Tic-Tac-Toe | Vs CPU (Easy random / Hard minimax) or 2-player. Classic or Misère (3 in a row loses) rules. Scoreboard, win-line highlight, round counter. |
 | Memory Match | Flip pairs of cards in as few moves as possible. Easy 4×3 / Medium 4×4 / Hard 6×4 grids. Fewest-moves best persisted. |
 | 2048 | Swipe to slide and merge tiles — chase the 2048 tile. Best score persisted. A Hint button in the with-hints edition flashes the roomiest move. |
+| Minesweeper | Tap to reveal, long-press to flag. Easy 8×8 / Medium 10×10 / Hard 12×12 minefields, flood-fill reveals, first tap always safe. |
 
 ## Build locally
 
@@ -62,6 +63,7 @@ app/src/main/
 │   ├── ui/tictactoe/TicTacToeScreen.kt  # minimax CPU, classic + misere
 │   ├── ui/memory/MemoryScreen.kt  # flip-pair matching + MemoryGame deck
 │   ├── ui/twenty48/Twenty48Screen.kt  # swipe-to-merge 2048 + Twenty48Game logic
+│   ├── ui/mines/MinesScreen.kt      # minesweeper + MinesGame field logic
 └── res/                           # strings, theme, vector launcher icon
 ```
 
@@ -73,6 +75,7 @@ app/src/main/
 - **Tic-Tac-Toe**: tap a square.
 - **Memory Match**: tap a card to flip it.
 - **2048**: swipe anywhere on the board to slide the tiles.
+- **Minesweeper**: tap a cell to reveal it, long-press to plant or remove a flag.
 
 ## License
 

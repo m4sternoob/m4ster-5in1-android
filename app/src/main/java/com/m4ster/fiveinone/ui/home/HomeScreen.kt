@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Grid3x3
 import androidx.compose.material.icons.filled.Grid4x4
 import androidx.compose.material.icons.filled.GridView
@@ -57,6 +58,7 @@ private val Games = listOf(
     GameEntry(Screen.TicTacToe, "Tic-Tac-Toe", "Vs CPU or a friend — minimax on Hard", Icons.Filled.Grid3x3),
     GameEntry(Screen.Memory, "Memory Match", "Flip pairs — fewest moves wins", Icons.Filled.GridView),
     GameEntry(Screen.Twenty48, "2048", "Slide and merge — chase the 2048 tile", Icons.Filled.Dialpad),
+    GameEntry(Screen.Mines, "Minesweeper", "Tap to reveal, long-press to flag", Icons.Filled.Grain),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

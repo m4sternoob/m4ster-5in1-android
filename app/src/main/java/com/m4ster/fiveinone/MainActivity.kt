@@ -23,6 +23,7 @@ import com.m4ster.fiveinone.ui.home.HomeScreen
 import com.m4ster.fiveinone.ui.ladders.LaddersScreen
 import com.m4ster.fiveinone.ui.ludo.LudoScreen
 import com.m4ster.fiveinone.ui.memory.MemoryScreen
+import com.m4ster.fiveinone.ui.mines.MinesScreen
 import com.m4ster.fiveinone.ui.settings.SettingsScreen
 import com.m4ster.fiveinone.ui.snake.SnakeScreen
 import com.m4ster.fiveinone.ui.theme.FiveInOneTheme
@@ -68,6 +69,9 @@ class MainActivity : ComponentActivity() {
                         }
                         Screen.Twenty48 -> GameScaffold("2048", goHome) { p ->
                             Twenty48Screen(Modifier.padding(p))
+                        }
+                        Screen.Mines -> GameScaffold("Minesweeper", goHome) { p ->
+                            MinesScreen(Modifier.padding(p))
                         }
                         Screen.Settings -> GameScaffold("Settings", goHome) { p ->
                             SettingsScreen(Modifier.padding(p))
