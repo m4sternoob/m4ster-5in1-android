@@ -86,7 +86,7 @@ fun MinesScreen(modifier: Modifier = Modifier) {
         if (field[i].mined) {
             revealed = revealed + i
             over = true
-            haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             return
         }
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
