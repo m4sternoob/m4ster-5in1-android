@@ -42,8 +42,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 `.github/workflows/build-apk.yml` builds the debug APK on every push to
 `main` (plus manual dispatch) with `ubuntu-latest`, Temurin JDK 17, and
-`./gradlew assembleDebug`, then uploads `app-debug.apk` as the
-`5in1-debug-apk` artifact. It assumes this project sits at the repo root.
+`./gradlew assembleDebug`, then uploads the debug APKs for both flavors as the
+`5in1-apks` artifact. It assumes this project sits at the repo root.
 
 ## Project structure
 
@@ -52,7 +52,7 @@ app/src/main/
 ├── AndroidManifest.xml            # portrait-only launcher activity
 ├── java/com/m4ster/fiveinone/
 │   ├── MainActivity.kt            # screen switcher (no nav library)
-│   ├── ui/Screen.kt               # the six screens
+│   ├── ui/Screen.kt               # the ten screens (8 games + home + settings)
 │   ├── ui/theme/Theme.kt          # dark arcade Material3 palette
 │   ├── ui/components/GameScaffold.kt  # title bar + back button shell
 │   ├── ui/home/HomeScreen.kt      # the 6 game cards + live stats
