@@ -51,7 +51,7 @@ private data class GameEntry(
 )
 
 private val Games = listOf(
-    GameEntry(Screen.Guessing, "Number Guessing", "Guess 1–100 with hot/cold hints", Icons.Filled.QuestionMark),
+    GameEntry(Screen.Guessing, "Number Guessing", "Guess the number with hot/cold hints", Icons.Filled.QuestionMark),
     GameEntry(Screen.Snake, "Snake", "Eat, grow, don't crash", Icons.Filled.ShowChart),
     GameEntry(Screen.Ladders, "Snakes & Ladders", "Race to square 100 — vs CPU or a friend", Icons.Filled.Casino),
     GameEntry(Screen.Ludo, "Ludo", "You vs CPU — bring both tokens home", Icons.Filled.Grid4x4),

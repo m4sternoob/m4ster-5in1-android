@@ -111,7 +111,7 @@ object HintEngine {
      * All hint candidates for this round, fun-first. The caller should
      * hand them out one at a time, skipping ones already shown.
      */
-    fun hintsFor(target: Int, guesses: List<Int>): List<String> {
+    fun hintsFor(target: Int, guesses: List<Int>, max: Int = 100): List<String> {
         val out = mutableListOf<String>()
         funFacts[target]?.let { out += "Fun fact: $it" }
         out += digitHint(target)
@@ -119,7 +119,7 @@ object HintEngine {
         val wrong = guesses.filter { it != target }
         if (wrong.isNotEmpty()) {
             val lo = wrong.filter { it < target }.maxOrNull() ?: 1
-            val hi = wrong.filter { it > target }.minOrNull() ?: 100
+            val hi = wrong.filter { it > target }.minOrNull() ?: max
             if (lo < hi) out += "From your guesses so far: it's between $lo and $hi."
         }
         return out.distinct()

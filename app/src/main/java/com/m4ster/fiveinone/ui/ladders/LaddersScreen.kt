@@ -158,6 +158,8 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         val id = gameId
         animating = true
         repeat(6) {
+            // Restart mid-tumble: bail before a stale write leaves a wrong dice face up.
+            if (id != gameId) return
             dice = (1..6).random()
             delay(70)
         }

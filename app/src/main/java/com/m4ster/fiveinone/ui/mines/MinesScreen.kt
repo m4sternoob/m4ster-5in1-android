@@ -66,7 +66,7 @@ fun MinesScreen(modifier: Modifier = Modifier) {
     var celebrating by remember { mutableStateOf(false) }
 
     val cells = difficulty.rows * difficulty.cols
-    val minesLeft = difficulty.mines - flagged.size
+    val minesLeft = (difficulty.mines - flagged.size).coerceAtLeast(0)
     val lost = over && !won
 
     fun newGame(d: MineDifficulty = difficulty) {

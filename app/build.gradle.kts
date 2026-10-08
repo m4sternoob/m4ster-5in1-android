@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "com.m4ster.fiveinone"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.m4ster.fiveinone"
         minSdk = 26
-        targetSdk = 34
+        targetSdk = 35
         versionCode = 7
         versionName = "1.5.0"
     }

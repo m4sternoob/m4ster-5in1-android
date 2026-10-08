@@ -142,7 +142,7 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
 
     fun askHint() {
         if (over || hintsLeft <= 0) return
-        val next = HintEngine.hintsFor(target, guesses).firstOrNull { it !in shownHints }
+        val next = HintEngine.hintsFor(target, guesses, difficulty.max).firstOrNull { it !in shownHints }
         if (next != null) shownHints = shownHints + next
     }
 

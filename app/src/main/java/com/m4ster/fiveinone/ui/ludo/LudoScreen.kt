@@ -223,6 +223,9 @@ fun LudoScreen(modifier: Modifier = Modifier) {
         val id = gameId
         scope.launch {
             repeat(6) {
+                // Restart during the tumble: bail without touching dice —
+                // reset() already left it null, and the Roll button gates on it.
+                if (id != gameId) return@launch
                 dice = (1..6).random()
                 delay(70)
             }
@@ -267,6 +270,8 @@ fun LudoScreen(modifier: Modifier = Modifier) {
     /** One CPU roll+move. Returns true if the CPU earned another turn. */
     suspend fun cpuRollOnce(id: Int): Boolean {
         repeat(6) {
+            // Same restart-during-tumble guard as roll(): leave dice null.
+            if (id != gameId) return false
             dice = (1..6).random()
             delay(70)
         }
