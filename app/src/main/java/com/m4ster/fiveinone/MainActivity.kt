@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.m4ster.fiveinone.ui.Screen
 import com.m4ster.fiveinone.ui.components.GameScaffold
+import com.m4ster.fiveinone.ui.fourinarow.FourInARowScreen
 import com.m4ster.fiveinone.ui.guessing.GuessingScreen
 import com.m4ster.fiveinone.ui.home.HomeScreen
 import com.m4ster.fiveinone.ui.ladders.LaddersScreen
@@ -63,6 +64,9 @@ class MainActivity : ComponentActivity() {
                         }
                         Screen.TicTacToe -> GameScaffold("Tic-Tac-Toe", goHome) { p ->
                             TicTacToeScreen(Modifier.padding(p))
+                        }
+                        Screen.FourInARow -> GameScaffold("4 in a Row", goHome) { p ->
+                            FourInARowScreen(Modifier.padding(p))
                         }
                         Screen.Memory -> GameScaffold("Memory Match", goHome) { p ->
                             MemoryScreen(Modifier.padding(p))

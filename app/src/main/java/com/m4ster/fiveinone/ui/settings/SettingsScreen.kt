@@ -62,7 +62,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
         }
         Text("About", style = MaterialTheme.typography.titleLarge)
         Text(
-            "5IN1 v${BuildConfig.VERSION_NAME} — eight games, fully offline.\nNo accounts, no ads, no tracking.",
+            "5IN1 v${BuildConfig.VERSION_NAME} — nine games, fully offline.\nNo accounts, no ads, no tracking.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
