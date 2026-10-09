@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Grid3x3
@@ -56,6 +57,7 @@ private val Games = listOf(
     GameEntry(Screen.Ladders, "Snakes & Ladders", "Race to square 100 — vs CPU or a friend", Icons.Filled.Casino),
     GameEntry(Screen.Ludo, "Ludo", "You vs CPU — bring both tokens home", Icons.Filled.Grid4x4),
     GameEntry(Screen.TicTacToe, "Tic-Tac-Toe", "Vs CPU or a friend — minimax on Hard", Icons.Filled.Grid3x3),
+    GameEntry(Screen.FourInARow, "4 in a Row", "Drop discs — connect four to win", Icons.Filled.Circle),
     GameEntry(Screen.Memory, "Memory Match", "Flip pairs — fewest moves wins", Icons.Filled.GridView),
     GameEntry(Screen.Twenty48, "2048", "Slide and merge — chase the 2048 tile", Icons.Filled.Dialpad),
     GameEntry(Screen.Mines, "Minesweeper", "Tap to reveal, long-press to flag", Icons.Filled.Grain),
@@ -69,11 +71,13 @@ fun HomeScreen(onOpen: (Screen) -> Unit) {
     val snakeBest by StatsStore.snakeBest(context).collectAsState(initial = 0)
     val memoryBest by StatsStore.memoryBest(context).collectAsState(initial = 0)
     val twenty48Best by StatsStore.twenty48Best(context).collectAsState(initial = 0)
+    val fourInARowWins by StatsStore.fourInARowCpuWins(context).collectAsState(initial = 0)
     // Live stat line under the blurb, only once there's something to show.
     val statFor: Map<Screen, String> = mapOf(
         Screen.Guessing to if (guessStats.wins > 0)
             "Wins ${guessStats.wins} · Streak ${guessStats.streak}" else "",
         Screen.Snake to if (snakeBest > 0) "Best $snakeBest" else "",
+        Screen.FourInARow to if (fourInARowWins > 0) "Vs CPU wins $fourInARowWins" else "",
         Screen.Memory to if (memoryBest > 0) "Best $memoryBest moves" else "",
         Screen.Twenty48 to if (twenty48Best > 0) "Best $twenty48Best" else "",
     )
