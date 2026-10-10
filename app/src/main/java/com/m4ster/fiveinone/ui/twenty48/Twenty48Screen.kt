@@ -96,7 +96,7 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
         )
         if (!canMove(grown)) {
             over = true
-            haptics.performHapticFeedback(HapticFeedbackType.Reject)
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             bankScore()
         }
     }
