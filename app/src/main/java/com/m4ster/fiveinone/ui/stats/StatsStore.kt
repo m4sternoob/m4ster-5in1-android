@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /* Tiny persisted stats: guessing wins/best/streak, the snake high
-   score, the memory fewest-moves best, and the 2048 best score.
+   score, the memory fewest-moves best, the 2048 best score, and the
+   4-in-a-row vs-CPU win count.
    DataStore, read as Flows, written from a coroutine scope. */
 
 val Context.fiveInOneDataStore by preferencesDataStore("fiveinone")
@@ -22,6 +23,7 @@ object StatsStore {
     private val SNAKE_BEST = intPreferencesKey("snake_best")
     private val MEMORY_BEST = intPreferencesKey("memory_best")
     private val TWENTY48_BEST = intPreferencesKey("twenty48_best")
+    private val FOURINAROW_CPU_WINS = intPreferencesKey("fourinarow_cpu_wins")
 
     fun guessStats(context: Context): Flow<GuessStats> =
         context.fiveInOneDataStore.data.map { p ->
@@ -76,6 +78,15 @@ object StatsStore {
     suspend fun recordTwenty48Score(context: Context, score: Int) {
         context.fiveInOneDataStore.edit { p ->
             if (score > (p[TWENTY48_BEST] ?: 0)) p[TWENTY48_BEST] = score
+        }
+    }
+
+    fun fourInARowCpuWins(context: Context): Flow<Int> =
+        context.fiveInOneDataStore.data.map { p -> p[FOURINAROW_CPU_WINS] ?: 0 }
+
+    suspend fun recordFourInARowCpuWin(context: Context) {
+        context.fiveInOneDataStore.edit { p ->
+            p[FOURINAROW_CPU_WINS] = (p[FOURINAROW_CPU_WINS] ?: 0) + 1
         }
     }
 }

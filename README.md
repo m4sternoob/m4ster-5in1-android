@@ -1,12 +1,12 @@
 # 5IN1 — Android
 
-Eight classic games in one native Android app. Clean, readable Kotlin +
+Nine classic games in one native Android app. Clean, readable Kotlin +
 Jetpack Compose (Material3) code, no exotic dependencies. Fully offline:
 no accounts, ads, analytics, or network permission.
 
 Package: `com.m4ster.fiveinone` · portrait only · minSdk 26 · targetSdk 34
 
-## The eight games
+## The nine games
 
 | Game | How it plays |
 |---|---|
@@ -15,6 +15,7 @@ Package: `com.m4ster.fiveinone` · portrait only · minSdk 26 · targetSdk 34
 | Snakes & Ladders | 1P vs CPU or 2–4 player pass-and-play. Tumbling dice, square-by-square token hops, portal flashes. Rolling a 6 earns another roll. Session tally. |
 | Ludo | Vs CPU or 2-player pass-and-play. Tumbling dice, gliding tokens, capture flash. Session tally. |
 | Tic-Tac-Toe | Vs CPU (Easy random / Hard minimax) or 2-player. Classic or Misère (3 in a row loses) rules. Scoreboard, win-line highlight, round counter. |
+| 4 in a Row | Vs CPU (Easy random / Hard: takes wins, blocks yours, favors center) or 2-player pass-and-play. Tap a column to drop your disc — connect four to win. Scoreboard, win-line highlight, round counter. Vs-CPU wins persisted. A Hint button in the with-hints edition marks the suggested column. |
 | Memory Match | Flip pairs of cards in as few moves as possible. Easy 4×3 / Medium 4×4 / Hard 6×4 grids. Fewest-moves best persisted. |
 | 2048 | Swipe to slide and merge tiles — chase the 2048 tile. Best score persisted. A Hint button in the with-hints edition flashes the roomiest move. |
 | Minesweeper | Tap to reveal, long-press to flag. Easy 8×8 / Medium 10×10 / Hard 12×12 minefields, flood-fill reveals, first tap always safe. |
@@ -61,6 +62,7 @@ app/src/main/
 │   ├── ui/ladders/LaddersScreen.kt    # 10×10 boustrophedon canvas board
 │   ├── ui/ludo/LudoScreen.kt      # 24-cell track, tap-to-move tokens
 │   ├── ui/tictactoe/TicTacToeScreen.kt  # minimax CPU, classic + misere
+│   ├── ui/fourinarow/FourInARowScreen.kt  # connect-four discs + FourInARowGame logic
 │   ├── ui/memory/MemoryScreen.kt  # flip-pair matching + MemoryGame deck
 │   ├── ui/twenty48/Twenty48Screen.kt  # swipe-to-merge 2048 + Twenty48Game logic
 │   ├── ui/mines/MinesScreen.kt      # minesweeper + MinesGame field logic
@@ -73,6 +75,7 @@ app/src/main/
 - **Snake**: swipe anywhere on the board to steer.
 - **Snakes & Ladders / Ludo**: tap Roll; in Ludo tap a glowing token to move it.
 - **Tic-Tac-Toe**: tap a square.
+- **4 in a Row**: tap a column to drop your disc.
 - **Memory Match**: tap a card to flip it.
 - **2048**: swipe anywhere on the board to slide the tiles.
 - **Minesweeper**: tap a cell to reveal it, long-press to plant or remove a flag.
