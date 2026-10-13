@@ -17,7 +17,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Dialpad
-import androidx.compose.material.icons.filled.Grain
 import androidx.compose.material.icons.filled.Grid3x3
 import androidx.compose.material.icons.filled.Grid4x4
 import androidx.compose.material.icons.filled.GridView
@@ -57,10 +56,9 @@ private val Games = listOf(
     GameEntry(Screen.Ladders, "Snakes & Ladders", "Race to square 100 — vs CPU or a friend", Icons.Filled.Casino),
     GameEntry(Screen.Ludo, "Ludo", "You vs CPU — bring both tokens home", Icons.Filled.Grid4x4),
     GameEntry(Screen.TicTacToe, "Tic-Tac-Toe", "Vs CPU or a friend — minimax on Hard", Icons.Filled.Grid3x3),
-    GameEntry(Screen.FourInARow, "4 in a Row", "Drop discs — connect four to win", Icons.Filled.Circle),
+    GameEntry(Screen.Connect4, "Connect 4", "Drop discs — connect four to win", Icons.Filled.Circle),
     GameEntry(Screen.Memory, "Memory Match", "Flip pairs — fewest moves wins", Icons.Filled.GridView),
     GameEntry(Screen.Twenty48, "2048", "Slide and merge — chase the 2048 tile", Icons.Filled.Dialpad),
-    GameEntry(Screen.Mines, "Minesweeper", "Tap to reveal, long-press to flag", Icons.Filled.Grain),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +75,7 @@ fun HomeScreen(onOpen: (Screen) -> Unit) {
         Screen.Guessing to if (guessStats.wins > 0)
             "Wins ${guessStats.wins} · Streak ${guessStats.streak}" else "",
         Screen.Snake to if (snakeBest > 0) "Best $snakeBest" else "",
-        Screen.FourInARow to if (fourInARowWins > 0) "Vs CPU wins $fourInARowWins" else "",
+        Screen.Connect4 to if (fourInARowWins > 0) "Vs CPU wins $fourInARowWins" else "",
         Screen.Memory to if (memoryBest > 0) "Best $memoryBest moves" else "",
         Screen.Twenty48 to if (twenty48Best > 0) "Best $twenty48Best" else "",
     )

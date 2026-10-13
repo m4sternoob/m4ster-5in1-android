@@ -1,7 +1,12 @@
 package com.m4ster.fiveinone.ui.memory
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -86,6 +91,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
     var lock by remember { mutableStateOf(false) }
     var won by remember { mutableStateOf(false) }
     var celebrating by remember { mutableStateOf(false) }
+    var newBest by remember { mutableStateOf(false) }
     var gameId by remember { mutableStateOf(0) }
     var unflipTick by remember { mutableStateOf(0) }
     val best by StatsStore.memoryBest(context).collectAsState(initial = 0)
@@ -99,7 +105,15 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
         moves = 0
         lock = false
         won = false
+        celebrating = false
+        newBest = false
         unflipTick = 0
+    }
+
+    fun nextSize(): MemorySize? = when (size) {
+        MemorySize.Easy -> MemorySize.Medium
+        MemorySize.Medium -> MemorySize.Hard
+        MemorySize.Hard -> null
     }
 
     fun flip(i: Int) {
@@ -115,6 +129,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             if (matched.size == deck.size) {
                 won = true
+                newBest = best == 0 || moves < best
                 celebrating = true
                 scope.launch { StatsStore.recordMemoryMoves(context, moves) }
             }
@@ -129,7 +144,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(unflipTick, gameId) {
         if (unflipTick == 0) return@LaunchedEffect
         val id = gameId
-        delay(700)
+        delay(600)
         if (id != gameId) return@LaunchedEffect
         flipped = emptyList()
         lock = false
@@ -163,24 +178,34 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
                 color = MaterialTheme.colorScheme.primary,
             )
         }
-        Column(
+        // The board cross-fades + settles in on every new game / level.
+        AnimatedContent(
+            targetState = gameId,
+            transitionSpec = {
+                (fadeIn(tween(300)) + scaleIn(initialScale = 0.94f, animationSpec = tween(300))) togetherWith
+                    fadeOut(tween(120))
+            },
+            label = "board",
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            deck.chunked(size.cols).forEachIndexed { r, row ->
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    row.forEachIndexed { c, iconId ->
-                        val i = r * size.cols + c
-                        MemoryCard(
-                            faceUp = i in flipped || i in matched,
-                            isMatched = i in matched,
-                            icon = CardIcons[iconId],
-                            onFlip = { flip(i) },
-                            modifier = Modifier.weight(1f),
-                        )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                deck.chunked(size.cols).forEachIndexed { r, row ->
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        row.forEachIndexed { c, iconId ->
+                            val i = r * size.cols + c
+                            MemoryCard(
+                                faceUp = i in flipped || i in matched,
+                                isMatched = i in matched,
+                                icon = CardIcons[iconId],
+                                onFlip = { flip(i) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
                     }
                 }
             }
@@ -194,7 +219,73 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
                     usePlatformDefaultWidth = false,
                 ),
             ) {
-                Celebration { celebrating = false }
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Celebration()
+                    WinCard(
+                        sizeLabel = size.label,
+                        moves = moves,
+                        newBest = newBest,
+                        best = if (newBest) moves else best,
+                        nextLabel = nextSize()?.label,
+                        onNext = {
+                            celebrating = false
+                            nextSize()?.let { newGame(it) }
+                        },
+                        onReplay = {
+                            celebrating = false
+                            newGame()
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+/* Level-complete card: sits over the confetti with the score, best,
+   and where to go next. */
+@Composable
+private fun WinCard(
+    sizeLabel: String,
+    moves: Int,
+    newBest: Boolean,
+    best: Int,
+    nextLabel: String?,
+    onNext: () -> Unit,
+    onReplay: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.padding(32.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text("Level Complete!", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "$sizeLabel · $moves moves",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                if (newBest) "New best!" else "Best $best",
+                style = MaterialTheme.typography.titleMedium,
+                color = if (newBest) AccentGreen else MaterialTheme.colorScheme.primary,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (nextLabel != null) {
+                    Button(onClick = onNext) { Text("Next: $nextLabel") }
+                }
+                androidx.compose.material3.OutlinedButton(onClick = onReplay) {
+                    Text("Replay")
+                }
             }
         }
     }
@@ -212,7 +303,7 @@ private fun MemoryCard(
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (faceUp) 180f else 0f,
-        animationSpec = tween(durationMillis = 300),
+        animationSpec = tween(durationMillis = 220),
         label = "flip",
     )
     Card(

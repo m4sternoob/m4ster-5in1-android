@@ -6,6 +6,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.drawBehind
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Button
@@ -55,7 +57,7 @@ import com.m4ster.fiveinone.ui.theme.GridLine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/* Connect Four: tap a column to drop your disc. Vs CPU on Easy (random)
+/* Connect 4: tap a column to drop your disc. Vs CPU on Easy (random)
    or Hard (takes wins, blocks yours, favors the center), or 2-player
    pass-and-play. The noHints flavor leaves the game pure: no Hint button. */
 
@@ -195,6 +197,7 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
     }
 
     val lineSet = winLine?.toSet() ?: emptySet()
+    val frameColor = MaterialTheme.colorScheme.primary
 
     @Composable
     fun ScoreCard(label: String, score: Int, color: Color, active: Boolean) {
@@ -262,12 +265,23 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
             ScoreCard(nameFor(CPU), p2Score, AccentRed, active = !over && turn == CPU)
         }
         // Seven tappable columns; discs stack from the bottom up.
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(BoardDark)
-                .padding(8.dp),
+        // U-frame like the toy: thick walls left/right/bottom, open top.
+        Box(
+            modifier = Modifier.drawBehind {
+                val stroke = 14.dp.toPx()
+                val frame = frameColor
+                val w = size.width
+                val h = size.height
+                drawLine(frame, Offset(stroke / 2f, 0f), Offset(stroke / 2f, h - stroke / 2f), stroke)
+                drawLine(frame, Offset(w - stroke / 2f, 0f), Offset(w - stroke / 2f, h - stroke / 2f), stroke)
+                drawLine(frame, Offset(0f, h - stroke / 2f), Offset(w, h - stroke / 2f), stroke)
+            },
         ) {
+            Row(
+                modifier = Modifier
+                    .background(BoardDark)
+                    .padding(start = 14.dp, end = 14.dp, top = 4.dp, bottom = 14.dp),
+            ) {
             for (c in 0 until FOUR_COLS) {
                 Column(
                     modifier = Modifier
@@ -332,6 +346,7 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
                         }
                     }
                 }
+            }
             }
         }
         Row(
