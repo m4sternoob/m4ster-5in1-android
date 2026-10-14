@@ -4,8 +4,10 @@ import android.graphics.Paint
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -29,17 +31,24 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
@@ -50,6 +59,7 @@ import com.m4ster.fiveinone.ui.theme.GridLine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /* Simplified Ludo: you vs CPU, or 2 players pass-and-play. 24-cell track
    (6 cols × 4 rows, boustrophedon) plus a base strip. Two tokens each;
@@ -117,6 +127,10 @@ fun LudoScreen(modifier: Modifier = Modifier) {
     var captureFx by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var captureT by remember { mutableStateOf(0f) }
     var celebrating by remember { mutableStateOf(false) }
+
+    // Token sprites, loaded once: blue = side 0, red = side 1.
+    val tokenBlue = ImageBitmap.imageResource(R.drawable.sprite_ludo_blue)
+    val tokenRed = ImageBitmap.imageResource(R.drawable.sprite_ludo_red)
 
     fun tokens(s: Int) = if (s == 0) sideA else sideB
     fun name(s: Int) = if (mode == LudoMode.VsCpu) (if (s == 0) "You" else "CPU")
@@ -325,13 +339,21 @@ fun LudoScreen(modifier: Modifier = Modifier) {
     val canTap = dice != null && winner == null &&
         (mode == LudoMode.TwoPlayer || turn == 0)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.bg_ludo),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.5f,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = {
                 setMode(if (mode == LudoMode.VsCpu) LudoMode.TwoPlayer else LudoMode.VsCpu)
@@ -428,11 +450,22 @@ fun LudoScreen(modifier: Modifier = Modifier) {
                 )
             }
 
-            fun drawToken(center: Offset, color: Color, glow: Boolean, parked: Boolean) {
+            fun drawToken(center: Offset, side: Int, glow: Boolean, parked: Boolean) {
                 val radius = if (parked) cw * 0.18f else cw * 0.3f
-                if (glow) drawCircle(color.copy(alpha = 0.35f), cw * 0.44f, center)
-                drawCircle(color, radius, center)
-                drawCircle(Color.White, radius, center, style = Stroke(cw * 0.05f))
+                val bmp = if (side == 0) tokenBlue else tokenRed
+                if (glow) drawCircle(
+                    (if (side == 0) AccentBlue else AccentRed).copy(alpha = 0.35f),
+                    cw * 0.44f, center,
+                )
+                val ds = (radius * 2.6f).roundToInt()
+                drawImage(
+                    bmp,
+                    dstOffset = IntOffset(
+                        (center.x - ds / 2).roundToInt(),
+                        (center.y - ds / 2).roundToInt(),
+                    ),
+                    dstSize = IntSize(ds, ds),
+                )
             }
             for (s in 0..1) {
                 for (idx in 0..1) {
@@ -445,7 +478,7 @@ fun LudoScreen(modifier: Modifier = Modifier) {
                     } else to
                     drawToken(
                         center,
-                        if (s == 0) AccentBlue else AccentRed,
+                        s,
                         glow = s == tapSide && dice != null && idx in movables && canTap,
                         parked = tk[idx] == HOME,
                     )
@@ -476,6 +509,7 @@ fun LudoScreen(modifier: Modifier = Modifier) {
             ) {
                 Celebration { celebrating = false }
             }
+        }
         }
     }
 }
