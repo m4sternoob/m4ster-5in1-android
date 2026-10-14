@@ -12,8 +12,8 @@ android {
         applicationId = "com.m4ster.fiveinone"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.6.0"
+        versionCode = 9
+        versionName = "1.7.0"
     }
 
     buildFeatures {
