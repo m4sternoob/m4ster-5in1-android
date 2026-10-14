@@ -1,28 +1,20 @@
 package com.m4ster.fiveinone.ui.home
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.item
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Casino
-import androidx.compose.material.icons.filled.Circle
-import androidx.compose.material.icons.filled.Dialpad
-import androidx.compose.material.icons.filled.Grid3x3
-import androidx.compose.material.icons.filled.Grid4x4
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,9 +28,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.Screen
 import com.m4ster.fiveinone.ui.stats.GuessStats
 import com.m4ster.fiveinone.ui.stats.StatsStore
@@ -47,18 +43,18 @@ private data class GameEntry(
     val screen: Screen,
     val title: String,
     val blurb: String,
-    val icon: ImageVector,
+    val cardArt: Int,
 )
 
 private val Games = listOf(
-    GameEntry(Screen.Guessing, "Number Guessing", "Guess 1–100 with hot/cold hints", Icons.Filled.QuestionMark),
-    GameEntry(Screen.Snake, "Snake", "Eat, grow, don't crash", Icons.Filled.ShowChart),
-    GameEntry(Screen.Ladders, "Snakes & Ladders", "Race to square 100 — vs CPU or a friend", Icons.Filled.Casino),
-    GameEntry(Screen.Ludo, "Ludo", "You vs CPU — bring both tokens home", Icons.Filled.Grid4x4),
-    GameEntry(Screen.TicTacToe, "Tic-Tac-Toe", "Vs CPU or a friend — minimax on Hard", Icons.Filled.Grid3x3),
-    GameEntry(Screen.Connect4, "Connect 4", "Drop discs — connect four to win", Icons.Filled.Circle),
-    GameEntry(Screen.Memory, "Memory Match", "Flip pairs — fewest moves wins", Icons.Filled.GridView),
-    GameEntry(Screen.Twenty48, "2048", "Slide and merge — chase the 2048 tile", Icons.Filled.Dialpad),
+    GameEntry(Screen.Guessing, "Number Guessing", "Guess 1–100 with hot/cold hints", R.drawable.card_guessing),
+    GameEntry(Screen.Snake, "Snake", "Eat, grow, don't crash", R.drawable.card_snake),
+    GameEntry(Screen.Ladders, "Snakes & Ladders", "Race to square 100 — vs CPU or a friend", R.drawable.card_ladders),
+    GameEntry(Screen.Ludo, "Ludo", "You vs CPU — bring both tokens home", R.drawable.card_ludo),
+    GameEntry(Screen.TicTacToe, "Tic-Tac-Toe", "Vs CPU or a friend — minimax on Hard", R.drawable.card_tictactoe),
+    GameEntry(Screen.Connect4, "Connect 4", "Drop discs — connect four to win", R.drawable.card_connect4),
+    GameEntry(Screen.Memory, "Memory Match", "Flip pairs — fewest moves wins", R.drawable.card_memory),
+    GameEntry(Screen.Twenty48, "2048", "Slide and merge — chase the 2048 tile", R.drawable.card_2048),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -98,24 +94,42 @@ fun HomeScreen(onOpen: (Screen) -> Unit) {
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ui_header_banner),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentScale = ContentScale.FillWidth,
+                    )
+                    Text(
+                        "8 games · one app",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
+            }
             items(Games) { game ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onOpen(game.screen) },
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            game.icon,
+                    Column {
+                        Image(
+                            painter = painterResource(game.cardArt),
                             contentDescription = null,
-                            modifier = Modifier.size(40.dp),
-                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(148.dp),
+                            contentScale = ContentScale.Crop,
                         )
-                        Spacer(Modifier.width(16.dp))
-                        Column(Modifier.weight(1f)) {
+                        Column(Modifier.padding(16.dp)) {
                             Text(game.title, style = MaterialTheme.typography.titleLarge)
                             Text(
                                 game.blurb,
