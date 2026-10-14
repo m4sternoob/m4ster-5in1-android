@@ -12,6 +12,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +56,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -64,6 +67,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.m4ster.fiveinone.BuildConfig
+import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -289,6 +293,13 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.bg_2048),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.45f,
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -503,40 +514,10 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
                         )
                     }
                     // Milestone banner: slides down, celebrates, leaves.
-                    AnimatedVisibility(
-                        visible = celebration != null,
-                        enter = slideInVertically { -it } + fadeIn(),
-                        exit = slideOutVertically { -it } + fadeOut(),
+                    MilestoneBanner(
+                        celebration = celebration,
                         modifier = Modifier.align(Alignment.TopCenter),
-                    ) {
-                        celebration?.let { (value, t) ->
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color(0xFF1F2937).copy(alpha = 0.95f),
-                                ),
-                                modifier = Modifier.padding(top = 8.dp),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(
-                                        horizontal = 20.dp,
-                                        vertical = 12.dp,
-                                    ),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        "$value REACHED!",
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 20.sp,
-                                        color = Color(0xFFFFE9A3),
-                                    )
-                                    Text(
-                                        "${t.name} theme unlocked",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    )
                 }
             }
             // Actions.
@@ -591,6 +572,11 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
+                        Image(
+                            painter = painterResource(R.drawable.sprite_star_win),
+                            contentDescription = null,
+                            modifier = Modifier.size(96.dp),
+                        )
                         Text(
                             "2048!",
                             fontSize = 44.sp,
@@ -786,5 +772,49 @@ private fun ModePill(
             color = if (selected) Color(0xFFFFE9A3)
             else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+// Milestone banner as a file-level composable so AnimatedVisibility resolves
+// its plain overload: inside the board Box an outer ColumnScope was hijacking
+// overload resolution and breaking compilation.
+@Composable
+private fun MilestoneBanner(
+    celebration: Pair<Int, TileTheme>?,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = celebration != null,
+        enter = slideInVertically { -it } + fadeIn(),
+        exit = slideOutVertically { -it } + fadeOut(),
+        modifier = modifier,
+    ) {
+        celebration?.let { (value, t) ->
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF1F2937).copy(alpha = 0.95f),
+                ),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = 20.dp,
+                        vertical = 12.dp,
+                    ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        "$value REACHED!",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp,
+                        color = Color(0xFFFFE9A3),
+                    )
+                    Text(
+                        "${t.name} theme unlocked",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
     }
 }

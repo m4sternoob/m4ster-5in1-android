@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,11 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
@@ -273,13 +276,21 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
         else -> "${nameFor(turn)} ($turn) to move"
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.bg_tictactoe),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.5f,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
                 selected = mode == TttMode.VsCpu,
@@ -367,10 +378,13 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
                                     enter = scaleIn(),
                                     label = "mark",
                                 ) {
-                                    Text(
-                                        mark.toString(),
-                                        fontSize = 44.sp,
-                                        color = if (mark == PLAYER) AccentBlue else AccentRed,
+                                    Image(
+                                        painter = painterResource(
+                                            if (mark == PLAYER) R.drawable.sprite_x_mark
+                                            else R.drawable.sprite_o_mark,
+                                        ),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
                                     )
                                 }
                             }
@@ -409,6 +423,7 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
             ) {
                 Celebration { celebrating = false }
             }
+        }
         }
     }
 }
