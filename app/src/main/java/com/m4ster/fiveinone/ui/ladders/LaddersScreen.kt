@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -415,8 +417,9 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .aspectRatio(1f),
         ) {
+            val density = LocalDensity.current
             LaunchedEffect(maxWidth) {
-                boardPx = maxWidth.toPx()
+                with(density) { boardPx = maxWidth.toPx() }
             }
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val boardSize = size.width
