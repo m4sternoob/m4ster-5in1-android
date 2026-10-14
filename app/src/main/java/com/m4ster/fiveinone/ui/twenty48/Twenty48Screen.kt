@@ -503,40 +503,10 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
                         )
                     }
                     // Milestone banner: slides down, celebrates, leaves.
-                    AnimatedVisibility(
-                        visible = celebration != null,
-                        enter = slideInVertically { -it } + fadeIn(),
-                        exit = slideOutVertically { -it } + fadeOut(),
+                    MilestoneBanner(
+                        celebration = celebration,
                         modifier = Modifier.align(Alignment.TopCenter),
-                    ) {
-                        celebration?.let { (value, t) ->
-                            Card(
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color(0xFF1F2937).copy(alpha = 0.95f),
-                                ),
-                                modifier = Modifier.padding(top = 8.dp),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(
-                                        horizontal = 20.dp,
-                                        vertical = 12.dp,
-                                    ),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                ) {
-                                    Text(
-                                        "$value REACHED!",
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 20.sp,
-                                        color = Color(0xFFFFE9A3),
-                                    )
-                                    Text(
-                                        "${t.name} theme unlocked",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    )
                 }
             }
             // Actions.
@@ -786,5 +756,49 @@ private fun ModePill(
             color = if (selected) Color(0xFFFFE9A3)
             else MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+// Milestone banner as a file-level composable so AnimatedVisibility resolves
+// its plain overload: inside the board Box an outer ColumnScope was hijacking
+// overload resolution and breaking compilation.
+@Composable
+private fun MilestoneBanner(
+    celebration: Pair<Int, TileTheme>?,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = celebration != null,
+        enter = slideInVertically { -it } + fadeIn(),
+        exit = slideOutVertically { -it } + fadeOut(),
+        modifier = modifier,
+    ) {
+        celebration?.let { (value, t) ->
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF1F2937).copy(alpha = 0.95f),
+                ),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = 20.dp,
+                        vertical = 12.dp,
+                    ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        "$value REACHED!",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 20.sp,
+                        color = Color(0xFFFFE9A3),
+                    )
+                    Text(
+                        "${t.name} theme unlocked",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
     }
 }
