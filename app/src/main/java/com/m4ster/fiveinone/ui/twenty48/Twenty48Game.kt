@@ -202,8 +202,5 @@ fun spawnTile(board: List<Int>, random: Random = Random): List<Int> {
     return spawnTile2(tiles, ::nextTileId, random).board.map { it?.value ?: 0 }
 }
 
-fun canMove(board: List<Int>): Boolean =
-    canMove(board.map { v -> if (v == 0) null else Tile(-1, v) })
-
 fun suggestMove(board: List<Int>): Direction? =
     suggestMove(board.map { v -> if (v == 0) null else Tile(nextTileId(), v) })
