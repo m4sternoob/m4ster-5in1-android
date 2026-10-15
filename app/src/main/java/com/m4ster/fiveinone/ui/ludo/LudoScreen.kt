@@ -1,7 +1,9 @@
 package com.m4ster.fiveinone.ui.ludo
 
 import android.graphics.Paint
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -33,6 +35,7 @@ import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,8 +61,12 @@ import com.m4ster.fiveinone.ui.theme.BoardDark
 import com.m4ster.fiveinone.ui.theme.GridLine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.random.Random
 
 /* Simplified Ludo: you vs CPU, or 2 players pass-and-play. 24-cell track
    (6 cols × 4 rows, boustrophedon) plus a base strip. Two tokens each;
@@ -127,6 +134,25 @@ fun LudoScreen(modifier: Modifier = Modifier) {
     var captureFx by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var captureT by remember { mutableStateOf(0f) }
     var celebrating by remember { mutableStateOf(false) }
+    // Dice juice: shakes while tumbling, pops when it lands.
+    var rolling by remember { mutableStateOf(false) }
+    val diceScale = remember { Animatable(1f) }
+    val diceRot = remember { Animatable(0f) }
+    LaunchedEffect(rolling) {
+        if (rolling) {
+            while (true) {
+                diceRot.snapTo(-16f)
+                diceRot.animateTo(16f, tween(80))
+                diceRot.animateTo(-16f, tween(80))
+            }
+        } else {
+            diceRot.snapTo(0f)
+            if (dice != null) {
+                diceScale.snapTo(1.45f)
+                diceScale.animateTo(1f, spring(dampingRatio = 0.38f, stiffness = 420f))
+            }
+        }
+    }
 
     // Token sprites, loaded once: blue = side 0, red = side 1.
     val tokenBlue = ImageBitmap.imageResource(R.drawable.sprite_ludo_blue)
@@ -157,6 +183,7 @@ fun LudoScreen(modifier: Modifier = Modifier) {
         winner = null
         glide = null
         captureFx = null
+        rolling = false
         message = if (mode == LudoMode.VsCpu) "Your turn — tap Roll." else "Player 1 — tap Roll."
         gameId++ // cancels any in-flight CPU turn
     }
@@ -235,6 +262,7 @@ fun LudoScreen(modifier: Modifier = Modifier) {
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         val r = (1..6).random()
         val id = gameId
+        rolling = true
         scope.launch {
             repeat(6) {
                 dice = (1..6).random()
@@ -242,6 +270,7 @@ fun LudoScreen(modifier: Modifier = Modifier) {
             }
             if (id != gameId) return@launch
             dice = r
+            rolling = false
             val moves = movableFor(s, r)
             movables = moves
             if (moves.isEmpty()) {
@@ -280,13 +309,18 @@ fun LudoScreen(modifier: Modifier = Modifier) {
 
     /** One CPU roll+move. Returns true if the CPU earned another turn. */
     suspend fun cpuRollOnce(id: Int): Boolean {
+        rolling = true
         repeat(6) {
             dice = (1..6).random()
             delay(70)
         }
-        if (id != gameId) return false
+        if (id != gameId) {
+            rolling = false
+            return false
+        }
         val r = (1..6).random()
         dice = r
+        rolling = false
         val moves = movableFor(1, r)
         var extra = false
         if (moves.isNotEmpty()) {
@@ -380,7 +414,15 @@ fun LudoScreen(modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.titleMedium,
                 color = if (winner == null) AccentGreen else MaterialTheme.colorScheme.onSurface,
             )
-            Text(dice?.let { DiceFaces[it - 1] } ?: "🎲", fontSize = 36.sp)
+            Text(
+                dice?.let { DiceFaces[it - 1] } ?: "🎲",
+                fontSize = 36.sp,
+                modifier = Modifier.graphicsLayer {
+                    rotationZ = diceRot.value
+                    scaleX = diceScale.value
+                    scaleY = diceScale.value
+                },
+            )
         }
         Canvas(
             modifier = Modifier
@@ -439,15 +481,30 @@ fun LudoScreen(modifier: Modifier = Modifier) {
             native.drawText("${name(0).uppercase()} · $done0/2 home", 1.5f * cw, 4.3f * ch, labelPaint)
             native.drawText("${name(1).uppercase()} · $done1/2 home", 4.5f * cw, 4.3f * ch, labelPaint)
 
-            // Capture flash: an expanding, fading ring on the capture cell.
+            // Capture flash: an expanding, fading ring on the capture cell,
+            // plus an explosion of sparks.
             captureFx?.let { (_, cell) ->
                 val c = trackCenter(cell, w, h)
+                val fade = (1f - captureT).coerceIn(0f, 1f)
                 drawCircle(
-                    Color.White.copy(alpha = 1f - captureT),
+                    Color.White.copy(alpha = fade),
                     radius = cw * (0.32f + 0.4f * captureT),
                     center = c,
                     style = Stroke(cw * 0.07f),
                 )
+                val rnd = Random(cell * 7919 + 13)
+                repeat(12) { i ->
+                    val a = rnd.nextFloat() * 2 * PI.toFloat()
+                    val dist = cw * (0.25f + 1.1f * captureT)
+                    drawCircle(
+                        Color(0xFFFFE9A3).copy(alpha = fade),
+                        radius = cw * 0.06f * (1f - captureT) + 1.5f,
+                        center = Offset(
+                            c.x + cos(a) * dist,
+                            c.y + sin(a) * dist,
+                        ),
+                    )
+                }
             }
 
             fun drawToken(center: Offset, side: Int, glow: Boolean, parked: Boolean) {

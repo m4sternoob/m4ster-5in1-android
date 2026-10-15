@@ -2,8 +2,12 @@ package com.m4ster.fiveinone.ui.tictactoe
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -31,7 +35,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -45,6 +53,7 @@ import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.theme.AccentRed
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /* Tic-tac-toe two ways: you (X) vs the CPU (O) on Easy or Hard, or two
    players pass-and-play. Hard CPU is full minimax with depth
@@ -135,6 +144,15 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
     var over by remember { mutableStateOf(false) }
     var gamesPlayed by remember { mutableStateOf(0) }
     var thinkDots by remember { mutableStateOf(0) }
+
+    // Win-line strike: 0→1 progress while the line draws itself.
+    val winDraw = remember { Animatable(0f) }
+    LaunchedEffect(winLine) {
+        if (winLine != null) {
+            winDraw.snapTo(0f)
+            winDraw.animateTo(1f, tween(450))
+        }
+    }
 
     fun nameFor(mark: Char) = if (mode == TttMode.VsCpu) {
         if (mark == PLAYER) "You" else "CPU"
@@ -346,7 +364,9 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
             ScoreCard("Draws", draws, Color.Gray, active = false)
             ScoreCard("${nameFor(CPU)} (O)", oScore, AccentRed, active = !over && turn == CPU)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // The board, wrapped so a strike line can draw over the win.
+        Box {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             for (r in 0..2) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (c in 0..2) {
@@ -366,30 +386,37 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
                                 .clickable { tap(i) },
                             contentAlignment = Alignment.Center,
                         ) {
-                            // AnimatedVisibility needs a ColumnScope/RowScope receiver,
-                            // so the mark sits in a Column inside the Box.
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                AnimatedVisibility(
-                                    visible = mark != ' ',
-                                    enter = scaleIn(),
-                                    label = "mark",
-                                ) {
-                                    Image(
-                                        painter = painterResource(
-                                            if (mark == PLAYER) R.drawable.sprite_x_mark
-                                            else R.drawable.sprite_o_mark,
-                                        ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                    )
-                                }
+                            // A placed mark slams in like a rubber stamp.
+                            if (mark != ' ') {
+                                StampMark(mark)
                             }
                         }
                     }
+                }
+            }
+            }
+            // Win strike: a line draws itself across the winning 3.
+            winLine?.let { line ->
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val cellPx = 96.dp.toPx()
+                    val gapPx = 8.dp.toPx()
+                    fun center(idx: Int): Offset {
+                        val r = idx / 3
+                        val c = idx % 3
+                        return Offset(
+                            c * (cellPx + gapPx) + cellPx / 2f,
+                            r * (cellPx + gapPx) + cellPx / 2f,
+                        )
+                    }
+                    val a = center(line.first())
+                    val b = center(line.last())
+                    drawLine(
+                        Color.White,
+                        a,
+                        lerp(a, b, winDraw.value),
+                        strokeWidth = 10.dp.toPx(),
+                        cap = StrokeCap.Round,
+                    )
                 }
             }
         }
@@ -426,4 +453,31 @@ fun TicTacToeScreen(modifier: Modifier = Modifier) {
         }
         }
     }
+}
+
+/* A placed mark slams in like a rubber stamp: oversized and tilted on
+   entry, then springs to rest with an overshoot. Plays once — the mark
+   only enters composition when it's placed. */
+@Composable
+private fun StampMark(mark: Char) {
+    val scale = remember { Animatable(1.6f) }
+    val rot = remember { Animatable(-10f) }
+    LaunchedEffect(Unit) {
+        launch { scale.animateTo(1f, spring(dampingRatio = 0.38f, stiffness = 550f)) }
+        rot.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = 550f))
+    }
+    Image(
+        painter = painterResource(
+            if (mark == PLAYER) R.drawable.sprite_x_mark
+            else R.drawable.sprite_o_mark,
+        ),
+        contentDescription = null,
+        modifier = Modifier
+            .size(64.dp)
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                rotationZ = rot.value
+            },
+    )
 }
