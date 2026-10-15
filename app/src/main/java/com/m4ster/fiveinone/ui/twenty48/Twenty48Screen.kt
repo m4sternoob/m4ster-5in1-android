@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.m4ster.fiveinone.BuildConfig
 import com.m4ster.fiveinone.R
+import com.m4ster.fiveinone.ui.components.PraiseBanner
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -135,6 +136,9 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
     var celebration by remember { mutableStateOf<Pair<Int, TileTheme>?>(null) }
     var epicUnlock by remember { mutableStateOf<TileTheme?>(null) }
     var winNewUnlock by remember { mutableStateOf(false) }
+    // Combo fanfare: 2+ merges in one swipe.
+    var comboPraise by remember { mutableStateOf<Pair<String, Long>?>(null) }
+    var comboSeq by remember { mutableStateOf(0L) }
     val shakeT = remember { Animatable(0f) }
     var shakeAmp by remember { mutableStateOf(0f) }
     val flashA = remember { Animatable(0f) }
@@ -173,6 +177,7 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
         celebration = null
         epicUnlock = null
         winNewUnlock = false
+        comboPraise = null
     }
 
     fun shake(amp: Float, durMs: Int) {
@@ -233,11 +238,21 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
                 uiTiles = uiTiles.filterNot { it.tile.id in absorbedIds }
             }
         }
-        // Merge celebrations: float-ups always, titan FX in Hard mode.
+        // Merge celebrations: float-ups and a particle pop on every merge,
+        // titan FX in Hard mode, combo fanfare for multi-merges.
         for (m in result.merges) {
             val k = fxId++
             floatUps = floatUps + FloatUp(k, m.cell, m.value, big = m.value >= 512)
+            bursts = bursts + Burst(fxId++, m.cell)
             if (mode == GameMode.Hard && m.value >= 256) titanFx(m.cell)
+        }
+        if (result.merges.size >= 2) {
+            comboSeq++
+            comboPraise = when {
+                result.merges.size >= 4 -> "Divine!"
+                result.merges.size == 3 -> "Tasty!"
+                else -> "Sweet!"
+            } to comboSeq
         }
         score += result.gained
         moves++
@@ -518,6 +533,15 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
                         celebration = celebration,
                         modifier = Modifier.align(Alignment.TopCenter),
                     )
+                    // Combo fanfare: pops over the board on multi-merges.
+                    comboPraise?.let { (text, id) ->
+                        PraiseBanner(
+                            text = text,
+                            key = id,
+                            modifier = Modifier.fillMaxSize(),
+                            onDone = { comboPraise = null },
+                        )
+                    }
                 }
             }
             // Actions.

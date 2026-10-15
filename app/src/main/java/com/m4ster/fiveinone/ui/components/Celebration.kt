@@ -1,7 +1,12 @@
 package com.m4ster.fiveinone.ui.components
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -9,15 +14,23 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.m4ster.fiveinone.ui.theme.AccentAmber
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.theme.AccentRed
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 /* Confetti burst for wins: ~70 paper bits with random velocity, gravity,
@@ -87,5 +100,48 @@ fun Celebration(
                 )
             }
         }
+    }
+}
+
+/* Candy-style praise banner: "Sweet!" / "Tasty!" / "Divine!". Pops in with
+   a springy overshoot, holds, then fades. The host passes a changing key
+   per fanfare and clears it in onDone. Cheap: one Text, no images. */
+@Composable
+fun PraiseBanner(
+    text: String,
+    key: Any?,
+    modifier: Modifier = Modifier,
+    onDone: () -> Unit = {},
+) {
+    val scale = remember(key) { Animatable(0.4f) }
+    val alpha = remember(key) { Animatable(0f) }
+    LaunchedEffect(key) {
+        launch { alpha.animateTo(1f, tween(120)) }
+        scale.animateTo(1.22f, spring(dampingRatio = 0.36f, stiffness = 380f))
+        scale.animateTo(1f, tween(160))
+        delay(950)
+        alpha.animateTo(0f, tween(250))
+        onDone()
+    }
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+        Text(
+            text = text,
+            fontSize = 52.sp,
+            fontWeight = FontWeight.Black,
+            color = Color(0xFFFFE9A3),
+            style = TextStyle(
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.55f),
+                    offset = Offset(3f, 4f),
+                    blurRadius = 10f,
+                ),
+            ),
+            modifier = Modifier.graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+                rotationZ = -5f
+                this.alpha = alpha.value
+            },
+        )
     }
 }
