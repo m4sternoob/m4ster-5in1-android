@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,10 +49,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.m4ster.fiveinone.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.ui.components.Celebration
@@ -95,6 +98,13 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
     var gameId by remember { mutableStateOf(0) }
     var unflipTick by remember { mutableStateOf(0) }
     val best by StatsStore.memoryBest(context).collectAsState(initial = 0)
+
+    // Card-back art follows the difficulty: easy / medium / hard.
+    val cardBackRes = when (size) {
+        MemorySize.Easy -> R.drawable.sprite_card_back_easy
+        MemorySize.Medium -> R.drawable.sprite_card_back_medium
+        MemorySize.Hard -> R.drawable.sprite_card_back_hard
+    }
 
     fun newGame(s: MemorySize = size) {
         size = s
@@ -151,13 +161,21 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
         unflipTick = 0
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.bg_memory),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.5f,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MemorySize.entries.forEach { s ->
                 FilterChip(
@@ -202,6 +220,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
                                 faceUp = i in flipped || i in matched,
                                 isMatched = i in matched,
                                 icon = CardIcons[iconId],
+                                backRes = cardBackRes,
                                 onFlip = { flip(i) },
                                 modifier = Modifier.weight(1f),
                             )
@@ -268,6 +287,11 @@ private fun WinCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Image(
+                painter = painterResource(R.drawable.sprite_trophy),
+                contentDescription = null,
+                modifier = Modifier.size(96.dp),
+            )
             Text("Level Complete!", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "$sizeLabel · $moves moves",
@@ -298,6 +322,7 @@ private fun MemoryCard(
     faceUp: Boolean,
     isMatched: Boolean,
     icon: ImageVector,
+    backRes: Int,
     onFlip: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -323,10 +348,13 @@ private fun MemoryCard(
             contentAlignment = Alignment.Center,
         ) {
             if (rotation < 90f) {
-                Text(
-                    "?",
-                    fontSize = 28.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                Image(
+                    painter = painterResource(backRes),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(6.dp),
+                    contentScale = ContentScale.Fit,
                 )
             } else {
                 // Un-mirror the back half of the rotation.
@@ -340,6 +368,7 @@ private fun MemoryCard(
                     )
                 }
             }
+        }
         }
     }
 }

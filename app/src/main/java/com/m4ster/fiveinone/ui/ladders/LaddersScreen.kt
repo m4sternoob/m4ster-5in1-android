@@ -4,6 +4,7 @@ import android.graphics.Paint
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -39,11 +40,13 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.components.GameScaffold
 import com.m4ster.fiveinone.ui.theme.AccentAmber
@@ -532,13 +535,23 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 ) {
                     Celebration { celebrating = false }
                     if (winner != null) {
-                        Text(
-                            winText,
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = TokenColors[winner!!],
-                            textAlign = TextAlign.Center,
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(32.dp),
-                        )
+                        ) {
+                            Image(
+                                painter = painterResource(R.drawable.sprite_trophy),
+                                contentDescription = null,
+                                modifier = Modifier.size(120.dp),
+                            )
+                            Text(
+                                winText,
+                                style = MaterialTheme.typography.headlineLarge,
+                                color = TokenColors[winner!!],
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
             }

@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,26 +40,33 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentAmber
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.random.Random
 
 /* Canvas snake with a few more knobs: three speeds, solid or wrapping
@@ -112,6 +120,12 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
     val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val best by StatsStore.snakeBest(context).collectAsState(initial = 0)
+
+    // Sprite art, loaded once: head, body segment, tail, golden food.
+    val headBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_head)
+    val bodyBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_body)
+    val tailBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_tail)
+    val goldBmp = ImageBitmap.imageResource(R.drawable.sprite_food_golden)
 
     var snake by remember { mutableStateOf(listOf(Pos(10, 10), Pos(9, 10), Pos(8, 10))) }
     var dir by remember { mutableStateOf(Dir.Right) }
@@ -249,13 +263,21 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(R.drawable.bg_snake),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            alpha = 0.55f,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -326,25 +348,71 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
             // Pulsing food.
             val fc = Offset(origin.x + food.x * cell + cell / 2, origin.y + food.y * cell + cell / 2)
             drawCircle(Color(0xFFF87171), radius = cell * 0.42f * pulse, center = fc)
-            // Golden food: worth 3× combo, blinks before it despawns.
+            // Golden food sprite: worth 3× combo, blinks before it despawns.
             golden?.let { gp ->
                 val gc = Offset(origin.x + gp.x * cell + cell / 2, origin.y + gp.y * cell + cell / 2)
                 val alpha = if (goldenTtl < 12 && goldenTtl % 2 == 0) 0.35f else 1f
-                drawCircle(Color(0xFFFBBF24).copy(alpha = alpha), radius = cell * 0.42f * pulse, center = gc)
-                drawCircle(Color.White.copy(alpha = alpha), radius = cell * 0.16f, center = gc)
+                val gs = (cell * 1.5f * pulse).roundToInt()
+                drawImage(
+                    goldBmp,
+                    dstOffset = IntOffset(
+                        (gc.x - gs / 2).roundToInt(),
+                        (gc.y - gs / 2).roundToInt(),
+                    ),
+                    dstSize = IntSize(gs, gs),
+                    alpha = alpha,
+                )
             }
-            // Gradient body, bright head.
+            // Sprite snake: the head aims along `dir`, body segments follow
+            // the flow, the tail taper trails behind.
+            fun drawSpriteCentered(
+                bmp: ImageBitmap,
+                center: Offset,
+                sizePx: Float,
+                rotDeg: Float,
+            ) {
+                val ds = sizePx.roundToInt()
+                rotate(rotDeg, center) {
+                    drawImage(
+                        bmp,
+                        dstOffset = IntOffset(
+                            (center.x - ds / 2).roundToInt(),
+                            (center.y - ds / 2).roundToInt(),
+                        ),
+                        dstSize = IntSize(ds, ds),
+                    )
+                }
+            }
+            val headDeg = when (dir) {
+                Dir.Right -> 0f
+                Dir.Down -> 90f
+                Dir.Left -> 180f
+                Dir.Up -> 270f
+            }
             val n = snake.size
             snake.forEachIndexed { i, p ->
-                val f = if (n <= 1) 0f else i / (n - 1).toFloat()
-                val color = if (i == 0) Color(0xFFEF4444)
-                    else lerp(Color(0xFF4ADE80), Color(0xFF166534), f)
-                drawRoundRect(
-                    color = color,
-                    topLeft = px(p),
-                    size = Size(cell, cell),
-                    cornerRadius = CornerRadius(cell * 0.28f),
-                )
+                val center = px(p) + Offset(cell / 2, cell / 2)
+                when (i) {
+                    0 -> drawSpriteCentered(headBmp, center, cell * 1.7f, headDeg)
+                    n - 1 -> {
+                        val prev = snake[n - 2]
+                        val tailDeg = when {
+                            p.x > prev.x -> 0f
+                            p.x < prev.x -> 180f
+                            p.y > prev.y -> 90f
+                            else -> 270f
+                        }
+                        drawSpriteCentered(tailBmp, center, cell * 1.6f, tailDeg)
+                    }
+                    else -> {
+                        val a = snake[i - 1]
+                        val b = snake[i + 1]
+                        drawSpriteCentered(
+                            bodyBmp, center, cell * 1.6f,
+                            if (a.x == b.x) 90f else 0f,
+                        )
+                    }
+                }
             }
             if (!alive) {
                 drawRect(Color(0x99000000), size = size)
@@ -361,6 +429,13 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
+                    if (newBest) {
+                        Image(
+                            painter = painterResource(R.drawable.sprite_trophy),
+                            contentDescription = null,
+                            modifier = Modifier.size(96.dp),
+                        )
+                    }
                     Text("Game over", style = MaterialTheme.typography.titleLarge)
                     Text("Score $score · Best $best")
                     if (newBest) {
@@ -403,6 +478,7 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
             ) {
                 Celebration { celebrating = false }
             }
+        }
         }
     }
 }
