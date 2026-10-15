@@ -308,6 +308,11 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
 
 /* Level-complete card: sits over the confetti with the score, best,
    and where to go next. */
+
+/* One card: back shows "?", front shows the icon. The whole card rotates
+   around Y; the face swaps at 90 degrees so it reads as a real flip. */
+}
+
 @Composable
 private fun WinCard(
     sizeLabel: String,
@@ -357,8 +362,6 @@ private fun WinCard(
     }
 }
 
-/* One card: back shows "?", front shows the icon. The whole card rotates
-   around Y; the face swaps at 90 degrees so it reads as a real flip. */
 @Composable
 private fun MemoryCard(
     faceUp: Boolean,
@@ -434,4 +437,3 @@ private fun MemoryCard(
         }
         }
     }
-}
