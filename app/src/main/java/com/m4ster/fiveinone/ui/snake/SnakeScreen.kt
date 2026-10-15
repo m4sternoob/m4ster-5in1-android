@@ -1,6 +1,7 @@
 package com.m4ster.fiveinone.ui.snake
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -65,8 +67,11 @@ import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentAmber
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.random.Random
 
 /* Canvas snake with a few more knobs: three speeds, solid or wrapping
@@ -114,6 +119,9 @@ private enum class Dir(val dx: Int, val dy: Int) {
 
 private data class Pos(val x: Int, val y: Int)
 
+/* One food-eat burst: where it happened and whether it was golden. */
+private data class EatFx(val key: Long, val at: Pos, val golden: Boolean)
+
 @Composable
 fun SnakeScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -145,6 +153,16 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
     var goldenTtl by remember { mutableStateOf(0) }
     var combo by remember { mutableStateOf(1) }
     var comboTtl by remember { mutableStateOf(0) }
+    // Eat-burst FX: 0→1 progress while a burst is alive.
+    var eatFx by remember { mutableStateOf<EatFx?>(null) }
+    var fxSeq by remember { mutableStateOf(0L) }
+    val burstT = remember { Animatable(0f) }
+    LaunchedEffect(eatFx?.key) {
+        val fx = eatFx ?: return@LaunchedEffect
+        burstT.snapTo(0f)
+        burstT.animateTo(1f, tween(450))
+        eatFx = null
+    }
 
     // Food pulse: pure UI animation, ping-pongs forever between the two sizes.
     var pulseTarget by remember { mutableStateOf(1.18f) }
@@ -222,6 +240,7 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
             score += lastGain
             combo = minOf(combo + 1, 5)
             comboTtl = 25
+            eatFx = EatFx(fxSeq++, next, ateGolden)
             if (ateGolden) {
                 golden = null
             } else {
@@ -390,6 +409,26 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                 Dir.Up -> 270f
             }
             val n = snake.size
+            // Speed lines: once the snake gets long it feels fast.
+            if (n >= 10 && alive) {
+                val headC = px(snake.first()) + Offset(cell / 2, cell / 2)
+                val back = when (dir) {
+                    Dir.Right -> Offset(-1f, 0f)
+                    Dir.Left -> Offset(1f, 0f)
+                    Dir.Down -> Offset(0f, -1f)
+                    Dir.Up -> Offset(0f, 1f)
+                }
+                for (i in 1..3) {
+                    val start = headC + back * (cell * (0.9f + (i - 1) * 0.55f))
+                    drawLine(
+                        Color.White.copy(alpha = 0.20f - i * 0.05f),
+                        start,
+                        start + back * cell * (0.7f + i * 0.6f),
+                        strokeWidth = cell * 0.13f,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
             snake.forEachIndexed { i, p ->
                 val center = px(p) + Offset(cell / 2, cell / 2)
                 when (i) {
@@ -410,6 +449,33 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                         drawSpriteCentered(
                             bodyBmp, center, cell * 1.6f,
                             if (a.x == b.x) 90f else 0f,
+                        )
+                    }
+                }
+            }
+            // Eat burst: expanding ring + radiating sparks at the food cell.
+            eatFx?.let { fx ->
+                val t = burstT.value
+                if (t < 1f) {
+                    val c = Offset(
+                        origin.x + fx.at.x * cell + cell / 2,
+                        origin.y + fx.at.y * cell + cell / 2,
+                    )
+                    val col = if (fx.golden) Color(0xFFFFD700) else Color(0xFFF87171)
+                    val alpha = 1f - t
+                    drawCircle(
+                        col.copy(alpha = alpha * 0.9f),
+                        radius = cell * (0.5f + 1.7f * t),
+                        center = c,
+                        style = Stroke(cell * 0.16f * (1f - t) + 2f),
+                    )
+                    repeat(8) { k ->
+                        val a = (k / 8f) * 2 * PI.toFloat() + fx.key
+                        val d = cell * (0.4f + 1.9f * t)
+                        drawCircle(
+                            col.copy(alpha = alpha),
+                            radius = cell * 0.11f * (1f - t) + 1f,
+                            center = Offset(c.x + cos(a) * d, c.y + sin(a) * d),
                         )
                     }
                 }

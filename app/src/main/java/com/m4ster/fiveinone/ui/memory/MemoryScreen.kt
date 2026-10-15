@@ -46,10 +46,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -58,8 +61,10 @@ import com.m4ster.fiveinone.R
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.ui.components.Celebration
+import com.m4ster.fiveinone.ui.components.PraiseBanner
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentGreen
+import com.m4ster.fiveinone.ui.twenty48.ParticleBurst
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -97,6 +102,13 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
     var newBest by remember { mutableStateOf(false) }
     var gameId by remember { mutableStateOf(0) }
     var unflipTick by remember { mutableStateOf(0) }
+    // Juice: the latest matched pair (for the burst), consecutive-match
+    // streak (for the escalating praise), and the praise itself.
+    var lastMatched by remember { mutableStateOf(listOf<Int>()) }
+    var matchKey by remember { mutableStateOf(0L) }
+    var matchStreak by remember { mutableStateOf(0) }
+    var praise by remember { mutableStateOf<Pair<String, Long>?>(null) }
+    var praiseSeq by remember { mutableStateOf(0L) }
     val best by StatsStore.memoryBest(context).collectAsState(initial = 0)
 
     // Card-back art follows the difficulty: easy / medium / hard.
@@ -118,6 +130,9 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
         celebrating = false
         newBest = false
         unflipTick = 0
+        lastMatched = emptyList()
+        matchStreak = 0
+        praise = null
     }
 
     fun nextSize(): MemorySize? = when (size) {
@@ -137,6 +152,23 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
             matched = matched + pair
             flipped = emptyList()
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            // Juice: burst on the pair, escalating praise for streaks.
+            matchKey++
+            lastMatched = pair
+            matchStreak++
+            if (matchStreak >= 2) {
+                praiseSeq++
+                praise = when {
+                    matchStreak >= 4 -> "Divine!"
+                    matchStreak == 3 -> "Tasty!"
+                    else -> "Sweet!"
+                } to praiseSeq
+            }
+            val burstId = matchKey
+            scope.launch {
+                delay(900)
+                if (matchKey == burstId) lastMatched = emptyList()
+            }
             if (matched.size == deck.size) {
                 won = true
                 newBest = best == 0 || moves < best
@@ -146,6 +178,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
         } else {
             lock = true
             unflipTick++
+            matchStreak = 0 // a miss breaks the praise streak
         }
     }
 
@@ -223,6 +256,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
                                 backRes = cardBackRes,
                                 onFlip = { flip(i) },
                                 modifier = Modifier.weight(1f),
+                                burstKey = if (i in lastMatched) matchKey else null,
                             )
                         }
                     }
@@ -230,8 +264,7 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
             }
         }
         Button(onClick = { newGame() }) { Text("New game") }
-        if (celebrating) {
-            Dialog(
+        if (celebrating) {            Dialog(
                 onDismissRequest = { celebrating = false },
                 properties = DialogProperties(
                     dismissOnClickOutside = false,
@@ -260,6 +293,15 @@ fun MemoryScreen(modifier: Modifier = Modifier) {
                     )
                 }
             }
+        }
+        // Escalating praise for consecutive matches, over everything.
+        praise?.let { (text, id) ->
+            PraiseBanner(
+                text = text,
+                key = id,
+                modifier = Modifier.fillMaxSize(),
+                onDone = { praise = null },
+            )
         }
     }
 }
@@ -325,6 +367,7 @@ private fun MemoryCard(
     backRes: Int,
     onFlip: () -> Unit,
     modifier: Modifier = Modifier,
+    burstKey: Long? = null,
 ) {
     val rotation by animateFloatAsState(
         targetValue = if (faceUp) 180f else 0f,
@@ -365,6 +408,26 @@ private fun MemoryCard(
                         modifier = Modifier.size(32.dp),
                         tint = if (isMatched) AccentGreen
                         else MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+            // Match burst: particles erupt from the card, unclipped.
+            if (burstKey != null) {
+                var center by remember { mutableStateOf(Offset.Zero) }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onSizeChanged { center = Offset(it.width / 2f, it.height / 2f) },
+                ) {
+                    ParticleBurst(
+                        key = burstKey,
+                        centerPx = center,
+                        colors = listOf(
+                            AccentGreen,
+                            Color.White,
+                            Color(0xFFFFE9A3),
+                        ),
+                        onDone = {},
                     )
                 }
             }

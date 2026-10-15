@@ -1,6 +1,8 @@
 package com.m4ster.fiveinone.ui.ladders
 
 import android.graphics.Paint
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,6 +45,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -56,6 +60,7 @@ import com.m4ster.fiveinone.ui.theme.AccentRed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /* Snakes & Ladders: 1 player vs CPU, or 2–4 players pass-and-play.
@@ -118,6 +123,12 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
     var burstId by remember { mutableStateOf(0) }
     var burstOrigin by remember { mutableStateOf(Offset(0.5f, 0.3f)) }
     var boardPx by remember { mutableStateOf(0f) }
+    // Candy juice: the board shudders on a snake bite (red flash),
+    // and a golden flash fanfares a ladder climb.
+    val boardShake = remember { Animatable(0f) }
+    var shakeAmp by remember { mutableStateOf(0f) }
+    val biteFlash = remember { Animatable(0f) }
+    val climbFlash = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
 
     val names = when (mode) {
@@ -143,6 +154,7 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
         slideT = 0f
         diceSpinTarget = 0f
         burstId = 0
+        shakeAmp = 0f
         message = "Race to 100 — tap Roll!"
         gameId++ // cancels any in-flight CPU turn or token animation
     }
@@ -206,6 +218,28 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
             // Ride the portal art instead of teleporting.
             portalFlash = who
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            if (portal == "snake") {
+                // Bite! The board shudders and flashes red.
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                scope.launch {
+                    shakeAmp = 16f
+                    boardShake.snapTo(0f)
+                    boardShake.animateTo(1f, tween(420, easing = LinearEasing))
+                    boardShake.snapTo(0f)
+                }
+                scope.launch {
+                    biteFlash.snapTo(0f)
+                    biteFlash.animateTo(1f, tween(110))
+                    biteFlash.animateTo(0f, tween(450))
+                }
+            } else {
+                // Climb! Golden fanfare flash over the confetti burst.
+                scope.launch {
+                    climbFlash.snapTo(0f)
+                    climbFlash.animateTo(0.85f, tween(130))
+                    climbFlash.animateTo(0f, tween(550))
+                }
+            }
             if (portal == "ladder" && boardPx > 0f) {
                 val c = cellCenter(final, boardPx)
                 burstOrigin = Offset(c.x / boardPx, c.y / boardPx)
@@ -414,11 +448,20 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                 },
             )
         }
-        // Board + confetti burst overlay.
+        // Board + confetti burst overlay. The whole board shudders on a bite.
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1f),
+                .aspectRatio(1f)
+                .offset {
+                    val t = boardShake.value
+                    if (t <= 0f || shakeAmp <= 0f) IntOffset.Zero
+                    else IntOffset(
+                        (sin(t * PI * 6).toFloat() * (1f - t) * shakeAmp).roundToInt(),
+                        (sin(t * PI * 4 + 1f).toFloat() * (1f - t) * shakeAmp * 0.6f)
+                            .roundToInt(),
+                    )
+                },
         ) {
             val density = LocalDensity.current
             LaunchedEffect(maxWidth) {
@@ -492,6 +535,21 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                     burstId = burstId,
                     origin = burstOrigin,
                     modifier = Modifier.fillMaxSize(),
+                )
+            }
+            // Bite flash (red) and climb fanfare (gold) wash over the board.
+            if (biteFlash.value > 0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFEF4444).copy(alpha = biteFlash.value * 0.32f)),
+                )
+            }
+            if (climbFlash.value > 0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFFFD76A).copy(alpha = climbFlash.value * 0.28f)),
                 )
             }
         }

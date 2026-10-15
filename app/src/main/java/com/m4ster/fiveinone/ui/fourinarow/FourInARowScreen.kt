@@ -1,6 +1,8 @@
 package com.m4ster.fiveinone.ui.fourinarow
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -39,12 +42,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -58,8 +64,10 @@ import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.theme.AccentRed
 import com.m4ster.fiveinone.ui.theme.BoardDark
 import com.m4ster.fiveinone.ui.theme.GridLine
+import com.m4ster.fiveinone.ui.twenty48.ParticleBurst
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /* Connect 4: tap a column to drop your disc. Vs CPU on Easy (random)
    or Hard (takes wins, blocks yours, favors the center), or 2-player
@@ -88,6 +96,8 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
     var gamesPlayed by remember { mutableStateOf(0) }
     var thinkDots by remember { mutableStateOf(0) }
     var hintCol by remember { mutableStateOf<Int?>(null) }
+    // Bumps every win so the win-line fireworks replay.
+    var winKey by remember { mutableStateOf(0L) }
 
     fun nameFor(mark: Char) = if (mode == FourMode.VsCpu) {
         if (mark == PLAYER) "You" else "CPU"
@@ -104,6 +114,7 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
         turn = PLAYER
         cpuThinking = false
         hintCol = null
+        winKey = 0L
         status = if (mode == FourMode.VsCpu) "Your move" else "Player 1 to move"
     }
 
@@ -124,6 +135,7 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
         hintCol = null
         if (result != null) {
             celebrating = true
+            winKey++
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         }
         when (result) {
@@ -333,38 +345,15 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
                                     .clip(CircleShape)
                                     .background(GridLine.copy(alpha = 0.45f)),
                             )
-                            // AnimatedVisibility needs a ColumnScope/RowScope
-                            // receiver, so the disc sits in a Column.
-                            Column(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.Center,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                AnimatedVisibility(
-                                    visible = mark != ' ',
-                                    enter = scaleIn(),
-                                    label = "disc",
-                                ) {
-                                    Box(
-                                        modifier = if (lit) {
-                                            Modifier
-                                                .fillMaxSize()
-                                                .border(3.dp, AccentGreen, CircleShape)
-                                        } else {
-                                            Modifier.fillMaxSize()
-                                        },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Image(
-                                            painter = painterResource(
-                                                if (mark == PLAYER) R.drawable.sprite_disc_yellow
-                                                else R.drawable.sprite_disc_red,
-                                            ),
-                                            contentDescription = null,
-                                            modifier = Modifier.fillMaxSize(),
-                                        )
-                                    }
-                                }
+                            // The disc drops in with a spring bounce on placement.
+                            // On a win, fireworks erupt from each of the 4.
+                            if (mark != ' ') {
+                                DiscDrop(
+                                    mark = mark,
+                                    lit = lit,
+                                    winKey = winKey,
+                                    glow = markColor(mark),
+                                )
                             }
                         }
                     }
@@ -414,6 +403,72 @@ fun FourInARowScreen(modifier: Modifier = Modifier) {
                 Celebration { celebrating = false }
             }
         }
+        }
+    }
+}
+
+/* One disc: falls from above the board on a loose spring so it bounces
+   into its cell, popping to full size as it lands. On a win, a firework
+   burst erupts from the cell (keyed per win so it replays). The burst
+   Canvas draws past the cell bounds — no clip modifiers in the chain. */
+@Composable
+private fun DiscDrop(
+    mark: Char,
+    lit: Boolean,
+    winKey: Long,
+    glow: Color,
+) {
+    val dropY = remember { Animatable(-460f) }
+    val scale = remember { Animatable(0.55f) }
+    LaunchedEffect(Unit) {
+        launch {
+            dropY.animateTo(0f, spring(dampingRatio = 0.42f, stiffness = 640f))
+        }
+        scale.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 620f))
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .offset { IntOffset(0, dropY.value.roundToInt()) }
+            .graphicsLayer {
+                scaleX = scale.value
+                scaleY = scale.value
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = if (lit) {
+                Modifier
+                    .fillMaxSize()
+                    .border(3.dp, AccentGreen, CircleShape)
+            } else {
+                Modifier.fillMaxSize()
+            },
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painter = painterResource(
+                    if (mark == PLAYER) R.drawable.sprite_disc_yellow
+                    else R.drawable.sprite_disc_red,
+                ),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (lit && winKey > 0) {
+            var center by remember { mutableStateOf(Offset.Zero) }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .onSizeChanged { center = Offset(it.width / 2f, it.height / 2f) },
+            ) {
+                ParticleBurst(
+                    key = winKey,
+                    centerPx = center,
+                    colors = listOf(AccentAmber, Color.White, glow),
+                    onDone = {},
+                )
+            }
         }
     }
 }

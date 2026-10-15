@@ -53,6 +53,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.BuildConfig
 import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
+import com.m4ster.fiveinone.ui.components.PraiseBanner
 import com.m4ster.fiveinone.ui.stats.GuessStats
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentBlue
@@ -100,6 +101,9 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
     var won by remember { mutableStateOf(false) }
     var lost by remember { mutableStateOf(false) }
     var celebrating by remember { mutableStateOf(false) }
+    // Praise fanfare for a correct guess.
+    var praise by remember { mutableStateOf<Pair<String, Long>?>(null) }
+    var praiseSeq by remember { mutableStateOf(0L) }
     val over = won || lost
     val hintsLeft = MAX_HINTS - shownHints.size
 
@@ -112,6 +116,7 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
         shownHints = listOf()
         won = false
         lost = false
+        praise = null
         message = "I'm thinking of a number between 1 and ${diff.max}."
     }
 
@@ -127,6 +132,12 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
             celebrating = true
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             message = if (attempts == 1) "You got it in 1 try!" else "You got it in $attempts tries!"
+            praiseSeq++
+            praise = when {
+                attempts == 1 -> "Divine!"
+                attempts <= 3 -> "Sweet!"
+                else -> "Tasty!"
+            } to praiseSeq
             scope.launch { StatsStore.recordGuessWin(context, attempts) }
         } else if (attempts >= difficulty.maxAttempts) {
             lost = true
@@ -332,7 +343,21 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
                     usePlatformDefaultWidth = false,
                 ),
             ) {
-                Celebration { celebrating = false }
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Celebration { celebrating = false }
+                    // Praise fanfare over the confetti.
+                    praise?.let { (text, id) ->
+                        PraiseBanner(
+                            text = text,
+                            key = id,
+                            modifier = Modifier.fillMaxSize(),
+                            onDone = { praise = null },
+                        )
+                    }
+                }
             }
         }
         }
