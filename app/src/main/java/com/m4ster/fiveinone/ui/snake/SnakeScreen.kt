@@ -132,10 +132,10 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
     val best by StatsStore.snakeBest(context).collectAsState(initial = 0)
 
     // Sprite art, loaded once: head, body segment, tail, golden food.
-    val headBmp = imageResource(R.drawable.sprite_snake_head)
-    val bodyBmp = imageResource(R.drawable.sprite_snake_body)
-    val tailBmp = imageResource(R.drawable.sprite_snake_tail)
-    val goldBmp = imageResource(R.drawable.sprite_food_golden)
+    val headBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_head)
+    val bodyBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_body)
+    val tailBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_tail)
+    val goldBmp = ImageBitmap.imageResource(R.drawable.sprite_food_golden)
 
     var snake by remember { mutableStateOf(listOf(Pos(10, 10), Pos(9, 10), Pos(8, 10))) }
     var dir by remember { mutableStateOf(Dir.Right) }
