@@ -64,6 +64,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
+import com.m4ster.fiveinone.ui.components.TrophySparkle
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentAmber
 import kotlinx.coroutines.delay
@@ -131,10 +132,10 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
     val best by StatsStore.snakeBest(context).collectAsState(initial = 0)
 
     // Sprite art, loaded once: head, body segment, tail, golden food.
-    val headBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_head)
-    val bodyBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_body)
-    val tailBmp = ImageBitmap.imageResource(R.drawable.sprite_snake_tail)
-    val goldBmp = ImageBitmap.imageResource(R.drawable.sprite_food_golden)
+    val headBmp = imageResource(R.drawable.sprite_snake_head)
+    val bodyBmp = imageResource(R.drawable.sprite_snake_body)
+    val tailBmp = imageResource(R.drawable.sprite_snake_tail)
+    val goldBmp = imageResource(R.drawable.sprite_food_golden)
 
     var snake by remember { mutableStateOf(listOf(Pos(10, 10), Pos(9, 10), Pos(8, 10))) }
     var dir by remember { mutableStateOf(Dir.Right) }
@@ -373,6 +374,10 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                 val gc = Offset(origin.x + gp.x * cell + cell / 2, origin.y + gp.y * cell + cell / 2)
                 val alpha = if (goldenTtl < 12 && goldenTtl % 2 == 0) 0.35f else 1f
                 val gs = (cell * 1.5f * pulse).roundToInt()
+                // Pulsing glow halo: two cheap concentric circles, no allocations.
+                val glowR = cell * 0.95f * pulse
+                drawCircle(Color(0xFFFFD34D).copy(alpha = 0.16f * alpha), radius = glowR, center = gc)
+                drawCircle(Color(0xFFFFD34D).copy(alpha = 0.10f * alpha), radius = glowR * 1.4f, center = gc)
                 drawImage(
                     goldBmp,
                     dstOffset = IntOffset(
@@ -497,10 +502,9 @@ fun SnakeScreen(modifier: Modifier = Modifier) {
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     if (newBest) {
-                        Image(
-                            painter = painterResource(R.drawable.sprite_trophy),
-                            contentDescription = null,
-                            modifier = Modifier.size(96.dp),
+                        TrophySparkle(
+                            resId = R.drawable.sprite_trophy,
+                            size = 96.dp,
                         )
                     }
                     Text("Game over", style = MaterialTheme.typography.titleLarge)
