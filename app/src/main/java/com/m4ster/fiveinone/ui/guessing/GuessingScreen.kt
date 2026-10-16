@@ -53,6 +53,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.BuildConfig
 import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
+import com.m4ster.fiveinone.ui.components.Breathing
 import com.m4ster.fiveinone.ui.components.PraiseBanner
 import com.m4ster.fiveinone.ui.stats.GuessStats
 import com.m4ster.fiveinone.ui.stats.StatsStore
@@ -222,11 +223,13 @@ fun GuessingScreen(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-        Image(
-            painter = painterResource(R.drawable.sprite_guessing_mascot),
-            contentDescription = null,
-            modifier = Modifier.size(110.dp),
-        )
+        Breathing(modifier = Modifier.size(110.dp)) {
+            Image(
+                painter = painterResource(R.drawable.sprite_guessing_mascot),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         val bestLabel = if (stats.best == 0) "–" else "${stats.best}"
         Text(
             "Wins ${stats.wins} · Best $bestLabel · Streak ${stats.streak}",

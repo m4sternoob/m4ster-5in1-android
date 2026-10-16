@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.sp
 import com.m4ster.fiveinone.BuildConfig
 import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.PraiseBanner
+import com.m4ster.fiveinone.ui.components.RotatingStar
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -596,10 +597,9 @@ fun Twenty48Screen(modifier: Modifier = Modifier) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        Image(
-                            painter = painterResource(R.drawable.sprite_star_win),
-                            contentDescription = null,
-                            modifier = Modifier.size(96.dp),
+                        RotatingStar(
+                            resId = R.drawable.sprite_star_win,
+                            size = 96.dp,
                         )
                         Text(
                             "2048!",
