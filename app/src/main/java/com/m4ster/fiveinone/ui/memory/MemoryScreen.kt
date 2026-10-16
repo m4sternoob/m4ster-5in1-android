@@ -62,6 +62,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.components.PraiseBanner
+import com.m4ster.fiveinone.ui.components.TrophySparkle
 import com.m4ster.fiveinone.ui.stats.StatsStore
 import com.m4ster.fiveinone.ui.theme.AccentGreen
 import com.m4ster.fiveinone.ui.twenty48.ParticleBurst
@@ -334,10 +335,9 @@ private fun WinCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Image(
-                painter = painterResource(R.drawable.sprite_trophy),
-                contentDescription = null,
-                modifier = Modifier.size(96.dp),
+            TrophySparkle(
+                resId = R.drawable.sprite_trophy,
+                size = 96.dp,
             )
             Text("Level Complete!", style = MaterialTheme.typography.headlineSmall)
             Text(

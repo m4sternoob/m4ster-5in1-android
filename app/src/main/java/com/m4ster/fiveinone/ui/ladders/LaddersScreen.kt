@@ -6,7 +6,6 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -53,6 +52,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.m4ster.fiveinone.R
 import com.m4ster.fiveinone.ui.components.Celebration
 import com.m4ster.fiveinone.ui.components.GameScaffold
+import com.m4ster.fiveinone.ui.components.TrophySparkle
 import com.m4ster.fiveinone.ui.theme.AccentAmber
 import com.m4ster.fiveinone.ui.theme.AccentBlue
 import com.m4ster.fiveinone.ui.theme.AccentGreen
@@ -598,10 +598,9 @@ fun LaddersScreen(modifier: Modifier = Modifier) {
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.padding(32.dp),
                         ) {
-                            Image(
-                                painter = painterResource(R.drawable.sprite_trophy),
-                                contentDescription = null,
-                                modifier = Modifier.size(120.dp),
+                            TrophySparkle(
+                                resId = R.drawable.sprite_trophy,
+                                size = 120.dp,
                             )
                             Text(
                                 winText,
